@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { ArrowLeft, Bookmark, Check, Download, RefreshCw, Share2 } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, Check, Download, RefreshCw, Share2, ShoppingBag } from 'lucide-react-native';
 import React, { useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
@@ -25,10 +25,12 @@ export default function ResultScreen() {
   const reset = useGenerationStore((state) => state.reset);
   const { saveDesign, isSaved } = useSavedDesigns();
   const designId = useRef<string>(`interi-${Date.now()}`);
+  const scrollRef = useRef<ScrollView | null>(null);
   const [view, setView] = useState<'before' | 'after'>('after');
   const [refinement, setRefinement] = useState<string>('');
   const [notice, setNotice] = useState<string | null>(null);
   const [exporting, setExporting] = useState<boolean>(false);
+  const [itemsSectionY, setItemsSectionY] = useState<number>(0);
 
   const mutation = useMutation({
     mutationFn: async (request: RedesignRequest) => {
@@ -123,7 +125,7 @@ export default function ResultScreen() {
           </Pressable>
         </View>
 
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 50 }}>
+        <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 50 }}>
           <View className="mt-4 flex-row items-end justify-between">
             <View>
               <Text className="text-[10px] font-semibold uppercase tracking-[2.5px]" style={{ color: COLORS.coral }}>The composition</Text>
@@ -142,11 +144,24 @@ export default function ResultScreen() {
                 </Pressable>
               ))}
             </View>
+            <Pressable
+              testID="view-design-items-button"
+              accessibilityRole="button"
+              accessibilityLabel={`View ${result.items?.length ?? 0} items in this design`}
+              onPress={() => scrollRef.current?.scrollTo({ y: Math.max(0, itemsSectionY - 12), animated: true })}
+              className="absolute bottom-[68px] right-4 min-h-11 flex-row items-center rounded-full border border-white/50 bg-black/60 px-4 active:opacity-75">
+              <ShoppingBag size={15} color={COLORS.white} />
+              <Text className="ml-2 text-xs font-semibold" style={{ color: COLORS.white }}>
+                {result.items?.length ? `${result.items.length} items · Shop the room` : 'View item details'}
+              </Text>
+            </Pressable>
           </View>
 
           <Text testID="revised-prompt" className="mt-4 text-sm italic leading-5" style={{ color: COLORS.olive }}>“{result.revisedPrompt}”</Text>
 
-          <DesignItems items={result.items ?? []} loading={mutation.isPending} onRefine={applyItemRefinement} />
+          <View onLayout={(event) => setItemsSectionY(event.nativeEvent.layout.y)}>
+            <DesignItems items={result.items ?? []} loading={mutation.isPending} onRefine={applyItemRefinement} />
+          </View>
 
           <View className="mt-6 flex-row gap-3">
             <View className="flex-1"><IconButton icon={saved ? Check : Bookmark} label={saved ? 'Saved' : 'Save'} onPress={() => void saveToInteri()} testID="save-design-button" /></View>
