@@ -54,7 +54,7 @@ export default function StyleScreen() {
                   style={{ width: '48.5%', minHeight: 148, borderColor: selected ? COLORS.espresso : COLORS.line, backgroundColor: selected ? COLORS.espresso : COLORS.paper }}>
                   <View className="flex-row items-start justify-between">
                     <View className="h-9 w-9 rounded-full" style={{ backgroundColor: item.color }} />
-                    <Text className="text-[10px] tracking-[2px]" style={{ color: selected ? COLORS.sand : COLORS.olive }}>0{index + 1}</Text>
+                    <Text className="text-[10px] tracking-[2px]" style={{ color: selected ? COLORS.sand : COLORS.olive }}>{String(index + 1).padStart(2, '0')}</Text>
                   </View>
                   <Text className="mt-5 text-lg" style={{ color: selected ? COLORS.white : COLORS.espresso, fontFamily: 'Georgia' }}>{item.label}</Text>
                   <Text className="mt-1 text-[11px] leading-4" style={{ color: selected ? COLORS.sand : COLORS.olive }}>{item.note}</Text>

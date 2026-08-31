@@ -17,6 +17,12 @@ export const STYLES = [
   { id: 'mid-century', label: 'Mid-century', note: 'Rich timber, tailored silhouettes', color: '#C8754F' },
   { id: 'quiet-luxury', label: 'Quiet luxury', note: 'Restrained, tactile, considered', color: '#6C655D' },
   { id: 'coastal', label: 'Coastal', note: 'Airy linen, sun-washed tones', color: '#8FA6A1' },
+  { id: 'scandinavian', label: 'Scandinavian', note: 'Light, clean and functional', color: '#C9C2B3' },
+  { id: 'modern', label: 'Modern', note: 'Sleek, contemporary lines', color: '#77736E' },
+  { id: 'minimalist', label: 'Minimalist', note: 'Purposeful and uncluttered', color: '#DED8CE' },
+  { id: 'industrial', label: 'Industrial', note: 'Raw, tailored urban character', color: '#625E59' },
+  { id: 'luxury', label: 'Luxury', note: 'Opulent, refined finishes', color: '#B49363' },
+  { id: 'bohemian', label: 'Bohemian', note: 'Layered, eclectic and free-spirited', color: '#A66F50' },
 ] as const;
 
 export const ROOM_TYPES = [
@@ -26,6 +32,7 @@ export const ROOM_TYPES = [
   { id: 'dining-room', label: 'Dining room' },
   { id: 'home-office', label: 'Home office' },
   { id: 'bathroom', label: 'Bathroom' },
+  { id: 'children-room', label: "Children's room" },
 ] as const;
 
 export type DesignStyle = (typeof STYLES)[number]['id'];

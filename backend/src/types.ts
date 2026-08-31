@@ -7,6 +7,12 @@ export const roomStyleSchema = z.enum([
   "mid-century",
   "quiet-luxury",
   "coastal",
+  "scandinavian",
+  "modern",
+  "minimalist",
+  "industrial",
+  "luxury",
+  "bohemian",
 ]);
 
 export const roomTypeSchema = z.enum([
@@ -16,6 +22,7 @@ export const roomTypeSchema = z.enum([
   "dining-room",
   "home-office",
   "bathroom",
+  "children-room",
 ]);
 
 export const redesignRoomRequestSchema = z.object({

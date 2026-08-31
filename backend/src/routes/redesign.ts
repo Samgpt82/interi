@@ -23,6 +23,18 @@ const styleDescriptions: Record<RoomStyle, string> = {
     "quiet luxury with exceptional materials, tailored upholstery, subtle stone and metal details, elegant restraint, and sophisticated tonal layering",
   coastal:
     "upscale contemporary coastal design with airy natural textures, sun-washed neutrals, light woods, linen, and understated ocean-inspired accents",
+  scandinavian:
+    "light and functional Scandinavian design with pale woods, clean lines, soft neutral textiles, practical storage, and warm natural light",
+  modern:
+    "sleek contemporary modern design with crisp architectural lines, refined furniture, balanced contrast, and polished uncluttered finishes",
+  minimalist:
+    "calm minimalist design with purposeful furnishings, generous negative space, restrained colors, concealed storage, and impeccable proportions",
+  industrial:
+    "refined industrial design with raw concrete, blackened metal, aged wood, exposed details, urban character, and warm layered lighting",
+  luxury:
+    "opulent luxury design with statement lighting, rich stone, premium fabrics, elegant metal accents, bespoke furniture, and refined finishes",
+  bohemian:
+    "collected bohemian design with layered textiles, artisan objects, warm woods, natural fibers, expressive pattern, plants, and relaxed character",
 };
 
 const roomNames: Record<RoomType, string> = {
@@ -32,6 +44,7 @@ const roomNames: Record<RoomType, string> = {
   "dining-room": "dining room",
   "home-office": "home office",
   bathroom: "bathroom",
+  "children-room": "children's room",
 };
 
 interface OpenAIImageEditResponse {
