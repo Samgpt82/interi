@@ -1,0 +1,215 @@
+import { Hono } from "hono";
+import { env } from "../env";
+import {
+  redesignRoomRequestSchema,
+  type RedesignRoomRequest,
+  type RedesignRoomResult,
+  type RoomStyle,
+  type RoomType,
+} from "../types";
+
+const redesignRouter = new Hono();
+
+const styleDescriptions: Record<RoomStyle, string> = {
+  "warm-minimal":
+    "warm minimalism with restrained forms, natural oak, soft plaster, tactile neutral textiles, and calm layered lighting",
+  japandi:
+    "refined Japandi design blending Japanese simplicity with Scandinavian warmth, low-profile furnishings, pale woods, and handcrafted texture",
+  "modern-organic":
+    "modern organic design with sculptural silhouettes, rounded forms, natural stone, warm wood, linen, and softly tonal colors",
+  "mid-century":
+    "elevated mid-century modern design with clean lines, walnut accents, iconic proportions, warm earth tones, and selective vintage character",
+  "quiet-luxury":
+    "quiet luxury with exceptional materials, tailored upholstery, subtle stone and metal details, elegant restraint, and sophisticated tonal layering",
+  coastal:
+    "upscale contemporary coastal design with airy natural textures, sun-washed neutrals, light woods, linen, and understated ocean-inspired accents",
+};
+
+const roomNames: Record<RoomType, string> = {
+  "living-room": "living room",
+  bedroom: "bedroom",
+  kitchen: "kitchen",
+  "dining-room": "dining room",
+  "home-office": "home office",
+  bathroom: "bathroom",
+};
+
+interface OpenAIImageEditResponse {
+  data?: Array<{
+    b64_json?: string;
+    url?: string;
+  }>;
+  error?: {
+    message?: string;
+  };
+}
+
+function createInteriorPrompt(request: RedesignRoomRequest): string {
+  const refinement = request.refinement
+    ? `Honor this additional direction: ${request.refinement}.`
+    : "";
+
+  return [
+    `Redesign this ${roomNames[request.roomType]} as a highly realistic, editorial-quality interior in ${styleDescriptions[request.style]}.`,
+    "Preserve the room's architecture exactly: keep the existing floor plan, room dimensions, walls, ceiling geometry, windows, doors, openings, columns, fixed built-ins, and all structural elements in their original locations.",
+    "Maintain the source image's camera position, perspective, focal length, composition, crop, and natural light direction.",
+    "Transform only the interior design through coherent furniture, lighting fixtures, decor, surface finishes, textiles, and a sophisticated material palette appropriate to the room's function.",
+    "Use believable scale, accurate geometry, physically plausible lighting and shadows, refined styling, and premium real-world materials. Avoid warped lines, duplicated objects, impossible reflections, visual clutter, text, logos, people, and architectural changes.",
+    refinement,
+    "The final result should look like a professionally photographed, buildable interior rather than a CGI concept.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function dataUrlToFile(dataUrl: string): File | null {
+  const match = dataUrl.match(
+    /^data:(image\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/=\r\n]+)$/
+  );
+  if (!match) return null;
+
+  const mimeType = match[1];
+  const base64 = match[2]?.replace(/\s/g, "");
+  if (!mimeType || !base64) return null;
+
+  try {
+    const bytes = Buffer.from(base64, "base64");
+    if (bytes.length === 0) return null;
+
+    const extension = mimeType === "image/jpeg" || mimeType === "image/jpg" ? "jpg" : mimeType.split("/")[1];
+    return new File([bytes], `room.${extension}`, { type: mimeType });
+  } catch {
+    return null;
+  }
+}
+
+async function readOpenAIResponse(response: Response): Promise<OpenAIImageEditResponse> {
+  try {
+    return (await response.json()) as OpenAIImageEditResponse;
+  } catch {
+    return {};
+  }
+}
+
+function createImageEditForm(imageFile: File, prompt: string): FormData {
+  const formData = new FormData();
+  formData.append("image", imageFile);
+  formData.append("model", "gpt-image-1");
+  formData.append("prompt", prompt);
+  formData.append("n", "1");
+  formData.append("size", "auto");
+  formData.append("quality", "high");
+  formData.append("output_format", "png");
+  formData.append("input_fidelity", "high");
+  return formData;
+}
+
+async function requestImageEdit(imageFile: File, prompt: string): Promise<Response> {
+  return fetch("https://api.openai.com/v1/images/edits", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },
+    body: createImageEditForm(imageFile, prompt),
+  });
+}
+
+redesignRouter.post("/", async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json(
+      { error: { message: "Request body must be valid JSON", code: "INVALID_JSON" } },
+      400
+    );
+  }
+
+  const parsed = redesignRoomRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      {
+        error: {
+          message: parsed.error.issues[0]?.message ?? "Invalid redesign request",
+          code: "INVALID_REQUEST",
+        },
+      },
+      400
+    );
+  }
+
+  const imageFile = dataUrlToFile(parsed.data.sourceImageDataUrl);
+  if (!imageFile) {
+    return c.json(
+      { error: { message: "The room image could not be decoded", code: "INVALID_IMAGE" } },
+      400
+    );
+  }
+
+  const revisedPrompt = createInteriorPrompt(parsed.data);
+
+  try {
+    let response = await requestImageEdit(imageFile, revisedPrompt);
+    let result = await readOpenAIResponse(response);
+
+    if (response.status >= 500) {
+      await Bun.sleep(600);
+      response = await requestImageEdit(imageFile, revisedPrompt);
+      result = await readOpenAIResponse(response);
+    }
+
+    if (!response.ok) {
+      console.error("OpenAI image edit failed", response.status, result.error?.message);
+      return c.json(
+        {
+          error: {
+            message: "The image redesign service could not complete the request",
+            code: "IMAGE_EDIT_FAILED",
+          },
+        },
+        502
+      );
+    }
+
+    const image = result.data?.[0];
+    let imageDataUrl: string | undefined;
+
+    if (image?.b64_json) {
+      imageDataUrl = `data:image/png;base64,${image.b64_json}`;
+    } else if (image?.url) {
+      const imageResponse = await fetch(image.url);
+      if (imageResponse.ok) {
+        const contentType = imageResponse.headers.get("content-type") ?? "image/png";
+        const imageBytes = Buffer.from(await imageResponse.arrayBuffer());
+        imageDataUrl = `data:${contentType};base64,${imageBytes.toString("base64")}`;
+      }
+    }
+
+    if (!imageDataUrl) {
+      console.error("OpenAI image edit returned no usable image");
+      return c.json(
+        {
+          error: {
+            message: "The image redesign service returned an invalid result",
+            code: "INVALID_IMAGE_RESULT",
+          },
+        },
+        502
+      );
+    }
+
+    const data: RedesignRoomResult = { imageDataUrl, revisedPrompt };
+    return c.json({ data });
+  } catch (error) {
+    console.error("Unexpected redesign error", error);
+    return c.json(
+      {
+        error: {
+          message: "The image redesign service is temporarily unavailable",
+          code: "IMAGE_SERVICE_UNAVAILABLE",
+        },
+      },
+      502
+    );
+  }
+});
+
+export { redesignRouter };
