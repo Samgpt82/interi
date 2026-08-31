@@ -60,7 +60,10 @@ export default function CreateScreen() {
 
   return (
     <Screen testID="create-screen">
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 124 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={{ flex: 1, width: '100%' }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 124 }}
+        showsVerticalScrollIndicator={false}>
         <Wordmark />
 
         <View className="mt-10 max-w-[350px]">

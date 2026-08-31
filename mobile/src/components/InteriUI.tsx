@@ -8,7 +8,10 @@ import { COLORS } from '@/lib/interi';
 
 export function Screen({ children, testID }: { children: React.ReactNode; testID: string }) {
   return (
-    <SafeAreaView testID={testID} edges={['top']} className="flex-1" style={{ backgroundColor: COLORS.chalk }}>
+    <SafeAreaView
+      testID={testID}
+      edges={['top']}
+      style={{ flex: 1, width: '100%', backgroundColor: COLORS.chalk }}>
       {children}
     </SafeAreaView>
   );
