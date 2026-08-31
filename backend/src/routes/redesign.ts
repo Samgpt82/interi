@@ -112,7 +112,8 @@ function createImageEditForm(imageFile: File, prompt: string): FormData {
   formData.append("n", "1");
   formData.append("size", "auto");
   formData.append("quality", "high");
-  formData.append("output_format", "png");
+  formData.append("output_format", "jpeg");
+  formData.append("output_compression", "85");
   formData.append("input_fidelity", "high");
   return formData;
 }
@@ -186,7 +187,7 @@ redesignRouter.post("/", async (c) => {
     let imageDataUrl: string | undefined;
 
     if (image?.b64_json) {
-      imageDataUrl = `data:image/png;base64,${image.b64_json}`;
+      imageDataUrl = `data:image/jpeg;base64,${image.b64_json}`;
     } else if (image?.url) {
       const imageResponse = await fetch(image.url);
       if (imageResponse.ok) {

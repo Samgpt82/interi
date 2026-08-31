@@ -8,7 +8,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput,
 
 import { IconButton, PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
 import { api } from '@/lib/api/api';
-import { saveImageToLibrary, shareImage } from '@/lib/image-utils';
+import { prepareImageForUpload, saveImageToLibrary, shareImage } from '@/lib/image-utils';
 import { COLORS, ROOM_TYPES, STYLES, type RedesignRequest, type RedesignResponse, type SavedDesign } from '@/lib/interi';
 import { useGenerationStore } from '@/lib/state/generation-store';
 import { useSavedDesigns } from '@/lib/state/saved-designs-context';
@@ -30,7 +30,10 @@ export default function ResultScreen() {
   const [exporting, setExporting] = useState<boolean>(false);
 
   const mutation = useMutation({
-    mutationFn: (request: RedesignRequest) => api.post<RedesignResponse>('/api/redesign', request),
+    mutationFn: async (request: RedesignRequest) => {
+      const preparedImage = await prepareImageForUpload(request.sourceImageDataUrl);
+      return api.post<RedesignResponse>('/api/redesign', { ...request, sourceImageDataUrl: preparedImage });
+    },
     onSuccess: (data) => {
       setResult(data);
       setView('after');
@@ -85,6 +88,12 @@ export default function ResultScreen() {
     }
   };
 
+  const updateRefinement = (value: string) => {
+    if (mutation.isError) mutation.reset();
+    setNotice(null);
+    setRefinement(value);
+  };
+
   const submitRefinement = () => {
     if (!refinement.trim()) return;
     setNotice(null);
@@ -136,13 +145,13 @@ export default function ResultScreen() {
           </View>
 
           {notice ? <Text testID="result-notice" className="mt-3 text-sm" style={{ color: COLORS.oliveDark }}>{notice}</Text> : null}
-          {mutation.isError ? <Text testID="refinement-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>That refinement didn’t complete. Please try again.</Text> : null}
+          {mutation.isError ? <Text testID="refinement-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>{mutation.error instanceof Error ? mutation.error.message : 'That refinement didn’t complete. Please try again.'}</Text> : null}
 
           <View className="mt-9 border-t pt-7" style={{ borderTopColor: COLORS.line }}>
             <Text className="text-[11px] font-semibold uppercase tracking-[2.5px]" style={{ color: COLORS.espresso }}>Refine the edit</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, paddingTop: 13, paddingRight: 20 }}>
               {REFINEMENTS.map((item) => (
-                <Pressable key={item} testID={`refinement-${item.toLowerCase().replaceAll(' ', '-')}`} onPress={() => setRefinement(item)} className="min-h-11 justify-center rounded-full border px-4" style={{ borderColor: refinement === item ? COLORS.coral : COLORS.line, backgroundColor: COLORS.paper }}>
+                <Pressable key={item} testID={`refinement-${item.toLowerCase().replaceAll(' ', '-')}`} onPress={() => updateRefinement(item)} className="min-h-11 justify-center rounded-full border px-4" style={{ borderColor: refinement === item ? COLORS.coral : COLORS.line, backgroundColor: COLORS.paper }}>
                   <Text className="text-sm" style={{ color: refinement === item ? COLORS.coral : COLORS.espresso }}>{item}</Text>
                 </Pressable>
               ))}
@@ -150,7 +159,7 @@ export default function ResultScreen() {
             <TextInput
               testID="refinement-input"
               value={refinement}
-              onChangeText={setRefinement}
+              onChangeText={updateRefinement}
               placeholder="Tell Interi what to adjust…"
               placeholderTextColor="#9B9185"
               multiline

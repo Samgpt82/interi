@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { Platform, Share } from 'react-native';
@@ -33,6 +34,27 @@ async function dataUrlToCacheFile(dataUrl: string) {
   const uri = `${FileSystem.cacheDirectory}interi-${Date.now()}.${extensionForMime(mimeType)}`;
   await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
   return { uri, mimeType };
+}
+
+export async function prepareImageForUpload(dataUrl: string) {
+  let objectUrl: string | null = null;
+
+  try {
+    if (Platform.OS === 'web') {
+      const response = await fetch(dataUrl);
+      objectUrl = URL.createObjectURL(await response.blob());
+    }
+
+    const inputUri = objectUrl ?? (await dataUrlToCacheFile(dataUrl)).uri;
+    const prepared = await ImageManipulator.manipulateAsync(
+      inputUri,
+      [{ resize: { width: 1280 } }],
+      { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+    );
+    return imageToDataUrl(prepared.uri, prepared.base64, 'image/jpeg');
+  } finally {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+  }
 }
 
 export async function saveImageToLibrary(dataUrl: string) {
