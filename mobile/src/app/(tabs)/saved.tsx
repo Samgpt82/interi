@@ -21,7 +21,7 @@ export default function SavedScreen() {
     setSource(design.sourceImageDataUrl, design.sourceImageDataUrl);
     setStyle(design.style);
     setRoomType(design.roomType);
-    setResult({ imageDataUrl: design.imageDataUrl, revisedPrompt: design.revisedPrompt, items: design.items ?? [] });
+    setResult({ imageDataUrl: design.imageDataUrl, revisedPrompt: design.revisedPrompt, items: design.items ?? [], shoppingCountry: design.shoppingCountry ?? 'GB' });
     router.push('/result');
   };
 

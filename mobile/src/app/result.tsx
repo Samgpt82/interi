@@ -67,6 +67,7 @@ export default function ResultScreen() {
       imageDataUrl: result.imageDataUrl,
       revisedPrompt: result.revisedPrompt,
       items: result.items,
+      shoppingCountry: result.shoppingCountry,
       style,
       roomType,
     };
@@ -97,13 +98,13 @@ export default function ResultScreen() {
   const submitRefinement = () => {
     if (!refinement.trim()) return;
     setNotice(null);
-    mutation.mutate({ sourceImageDataUrl: result.imageDataUrl, style, roomType, refinement: refinement.trim() });
+    mutation.mutate({ sourceImageDataUrl: result.imageDataUrl, style, roomType, shoppingCountry: result.shoppingCountry, refinement: refinement.trim() });
   };
 
   const applyItemRefinement = (instruction: string) => {
     setNotice(null);
     setRefinement('');
-    mutation.mutate({ sourceImageDataUrl: result.imageDataUrl, style, roomType, refinement: instruction });
+    mutation.mutate({ sourceImageDataUrl: result.imageDataUrl, style, roomType, shoppingCountry: result.shoppingCountry, refinement: instruction });
   };
 
   return (
@@ -149,7 +150,7 @@ export default function ResultScreen() {
           <Text testID="revised-prompt" numberOfLines={3} ellipsizeMode="tail" className="mt-4 text-sm italic leading-5" style={{ color: COLORS.olive }}>“{result.revisedPrompt}”</Text>
 
           <View onLayout={(event) => setItemsSectionY(event.nativeEvent.layout.y)}>
-            <DesignItems items={result.items ?? []} loading={mutation.isPending} onRefine={applyItemRefinement} />
+            <DesignItems items={result.items ?? []} loading={mutation.isPending} shoppingCountry={result.shoppingCountry} onRefine={applyItemRefinement} />
           </View>
 
           <View className="mt-6 flex-row gap-3">

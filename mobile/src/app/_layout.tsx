@@ -42,6 +42,14 @@ export function RootLayoutNav() {
         <Stack.Screen name="style" />
         <Stack.Screen name="generating" options={{ gestureEnabled: false }} />
         <Stack.Screen name="result" />
+        <Stack.Screen
+          name="settings"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: [0.75],
+            sheetGrabberVisible: true,
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );

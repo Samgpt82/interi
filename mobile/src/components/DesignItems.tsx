@@ -3,27 +3,23 @@ import { ChevronDown, ChevronUp, ExternalLink, ShoppingBag, Sparkles, WandSparkl
 import React, { useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 
-import { COLORS, type DesignItem } from '@/lib/interi';
+import { COLORS, type DesignItem, type ShoppingCountry } from '@/lib/interi';
+import { getShoppingMarket } from '@/lib/retailers';
 
 interface DesignItemsProps {
   items: DesignItem[];
   loading: boolean;
+  shoppingCountry: ShoppingCountry;
   onRefine: (instruction: string) => void;
 }
-
-const RETAILERS = [
-  { name: 'Google', getUrl: (query: string) => `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(query)}` },
-  { name: 'Amazon', getUrl: (query: string) => `https://www.amazon.co.uk/s?k=${encodeURIComponent(query)}` },
-  { name: 'Wayfair', getUrl: (query: string) => `https://www.wayfair.co.uk/keyword.php?keyword=${encodeURIComponent(query)}` },
-  { name: 'IKEA', getUrl: (query: string) => `https://www.ikea.com/gb/en/search/?q=${encodeURIComponent(query)}` },
-] as const;
 
 function slug(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
-export function DesignItems({ items, loading, onRefine }: DesignItemsProps) {
+export function DesignItems({ items, loading, shoppingCountry, onRefine }: DesignItemsProps) {
   const [expandedId, setExpandedId] = useState<string | null>(items[0]?.id ?? null);
+  const market = getShoppingMarket(shoppingCountry);
 
   const runRefinement = (instruction: string) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -85,12 +81,18 @@ export function DesignItems({ items, loading, onRefine }: DesignItemsProps) {
               <View testID={`design-item-details-${itemSlug}`} className="border-t px-5 pb-5 pt-4" style={{ borderTopColor: COLORS.line, backgroundColor: '#F8F4EC' }}>
                 <Text className="text-sm leading-5" style={{ color: COLORS.oliveDark }}>{item.description}</Text>
 
-                <Text className="mt-5 text-[10px] font-semibold uppercase tracking-[1.8px]" style={{ color: COLORS.olive }}>Shop similar</Text>
+                <View className="mt-5 flex-row items-center justify-between">
+                  <Text className="text-[10px] font-semibold uppercase tracking-[1.8px]" style={{ color: COLORS.olive }}>Shop similar</Text>
+                  <View testID="design-shopping-country" className="items-end px-1">
+                    <Text className="text-xs font-semibold" style={{ color: COLORS.coral }}>{market.flag} {market.name}</Text>
+                    <Text className="mt-0.5 text-[9px]" style={{ color: COLORS.olive }}>Used for this design</Text>
+                  </View>
+                </View>
                 <View className="mt-2 flex-row flex-wrap gap-2">
-                  {RETAILERS.map((retailer) => (
+                  {market.retailers.map((retailer) => (
                     <Pressable
                       key={retailer.name}
-                      testID={`shop-${retailer.name.toLowerCase()}-${itemSlug}`}
+                      testID={`shop-${slug(retailer.name)}-${itemSlug}`}
                       onPress={() => openRetailer(retailer.getUrl(item.searchTerms))}
                       className="min-h-10 flex-row items-center justify-center rounded-full border px-3.5 active:opacity-60"
                       style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper }}>
@@ -149,7 +151,7 @@ export function DesignItems({ items, loading, onRefine }: DesignItemsProps) {
 
       {items.length > 0 ? (
         <Text className="border-t px-5 py-4 text-[10px] leading-4" style={{ borderTopColor: COLORS.line, color: COLORS.olive }}>
-          Prices are broad estimates. Retailer buttons open searches for visually similar products, not guaranteed exact matches.
+          Prices are broad estimates for the market used to create this design. Retailer buttons open local searches for visually similar products, not guaranteed exact matches.
         </Text>
       ) : null}
     </View>

@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { Camera, ImagePlus, Sparkles, X } from 'lucide-react-native';
+import { Camera, ImagePlus, Settings, Sparkles, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -64,7 +64,18 @@ export default function CreateScreen() {
         style={{ flex: 1, width: '100%' }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 124 }}
         showsVerticalScrollIndicator={false}>
-        <Wordmark />
+        <View className="flex-row items-center justify-between">
+          <View className="flex-1"><Wordmark /></View>
+          <Pressable
+            testID="shopping-settings-button"
+            accessibilityRole="button"
+            accessibilityLabel="Shopping country settings"
+            onPress={() => router.push('/settings')}
+            className="ml-4 h-11 w-11 items-center justify-center rounded-full border active:opacity-60"
+            style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper }}>
+            <Settings size={19} color={COLORS.espresso} />
+          </Pressable>
+        </View>
 
         <View className="mt-10 max-w-[350px]">
           <Text className="text-[11px] font-semibold uppercase tracking-[3px]" style={{ color: COLORS.coral }}>Your room, reconsidered</Text>

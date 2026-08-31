@@ -25,6 +25,8 @@ export const roomTypeSchema = z.enum([
   "children-room",
 ]);
 
+export const shoppingCountrySchema = z.enum(["SE", "GB"]);
+
 export const redesignRoomRequestSchema = z.object({
   sourceImageDataUrl: z
     .string()
@@ -33,11 +35,13 @@ export const redesignRoomRequestSchema = z.object({
     .regex(/^data:image\/(png|jpe?g|webp);base64,/, "A valid room image is required"),
   style: roomStyleSchema,
   roomType: roomTypeSchema,
+  shoppingCountry: shoppingCountrySchema.default("GB"),
   refinement: z.string().trim().max(500).optional(),
 });
 
 export type RoomStyle = z.infer<typeof roomStyleSchema>;
 export type RoomType = z.infer<typeof roomTypeSchema>;
+export type ShoppingCountry = z.infer<typeof shoppingCountrySchema>;
 export type RedesignRoomRequest = z.infer<typeof redesignRoomRequestSchema>;
 
 export const designItemColorSchema = z.object({
@@ -69,4 +73,5 @@ export interface RedesignRoomResult {
   imageDataUrl: string;
   revisedPrompt: string;
   items: DesignItem[];
+  shoppingCountry: ShoppingCountry;
 }

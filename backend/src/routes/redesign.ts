@@ -8,6 +8,7 @@ import {
   type RedesignRoomResult,
   type RoomStyle,
   type RoomType,
+  type ShoppingCountry,
 } from "../types";
 
 const redesignRouter = new Hono();
@@ -62,6 +63,17 @@ const roomNames: Record<RoomType, string> = {
   "home-office": "home office",
   bathroom: "bathroom",
   "children-room": "children's room",
+};
+
+const shoppingMarkets: Record<ShoppingCountry, { country: string; priceGuidance: string }> = {
+  SE: {
+    country: "Sweden",
+    priceGuidance: "realistic broad Swedish price ranges in SEK, formatted like 3 000–7 000 kr",
+  },
+  GB: {
+    country: "the United Kingdom",
+    priceGuidance: "realistic broad UK price ranges in GBP, formatted like £300–£700",
+  },
 };
 
 interface OpenAIImageEditResponse {
@@ -228,6 +240,7 @@ async function identifyDesignItems(
   imageDataUrl: string,
   request: RedesignRoomRequest
 ): Promise<DesignItem[]> {
+  const market = shoppingMarkets[request.shoppingCountry];
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -246,7 +259,7 @@ async function identifyDesignItems(
                 `Create a concise shopping inventory for the main visible furniture, lighting, textiles, and decor in this redesigned ${roomNames[request.roomType]}.`,
                 `The design style is ${styleDescriptions[request.style]}.`,
                 "Return 4 to 7 distinct, prominent items. Describe what is actually visible, without claiming an exact brand or model.",
-                "Use short useful names, realistic broad UK price ranges such as £300–£700, retailer-friendly search terms, accessible color hex values, and exactly three genuinely different swap suggestions.",
+                `The user shops in ${market.country}. Use short useful names, ${market.priceGuidance}, retailer-friendly search terms suitable for that market, accessible color hex values, and exactly three genuinely different swap suggestions.`,
                 "The description should explain the item's placement or role in one short sentence. Choose one fitting emoji for each item.",
               ].join(" "),
             },
@@ -374,7 +387,7 @@ redesignRouter.post("/", async (c) => {
     }
 
     const items = await identifyDesignItems(imageDataUrl, parsed.data);
-    const data: RedesignRoomResult = { imageDataUrl, revisedPrompt, items };
+    const data: RedesignRoomResult = { imageDataUrl, revisedPrompt, items, shoppingCountry: parsed.data.shoppingCountry };
     return c.json({ data });
   } catch (error) {
     console.error("Unexpected redesign error", error);

@@ -35,13 +35,17 @@ export const ROOM_TYPES = [
   { id: 'children-room', label: "Children's room" },
 ] as const;
 
+export const SHOPPING_COUNTRIES = ['SE', 'GB'] as const;
+
 export type DesignStyle = (typeof STYLES)[number]['id'];
 export type RoomType = (typeof ROOM_TYPES)[number]['id'];
+export type ShoppingCountry = (typeof SHOPPING_COUNTRIES)[number];
 
 export interface RedesignRequest {
   sourceImageDataUrl: string;
   style: DesignStyle;
   roomType: RoomType;
+  shoppingCountry: ShoppingCountry;
   refinement?: string;
 }
 
@@ -67,6 +71,7 @@ export interface RedesignResponse {
   imageDataUrl: string;
   revisedPrompt: string;
   items: DesignItem[];
+  shoppingCountry: ShoppingCountry;
 }
 
 export interface SavedDesign {
@@ -76,6 +81,7 @@ export interface SavedDesign {
   imageDataUrl: string;
   revisedPrompt: string;
   items?: DesignItem[];
+  shoppingCountry?: ShoppingCountry;
   style: DesignStyle;
   roomType: RoomType;
 }

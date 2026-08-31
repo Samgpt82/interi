@@ -10,6 +10,7 @@ import { PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
 import { api } from '@/lib/api/api';
 import { COLORS, type RedesignRequest, type RedesignResponse } from '@/lib/interi';
 import { useGenerationStore } from '@/lib/state/generation-store';
+import { usePreferencesStore } from '@/lib/state/preferences-store';
 
 export default function GeneratingScreen() {
   const sourceImageDataUrl = useGenerationStore((state) => state.sourceImageDataUrl);
@@ -17,6 +18,8 @@ export default function GeneratingScreen() {
   const roomType = useGenerationStore((state) => state.roomType);
   const direction = useGenerationStore((state) => state.direction);
   const setResult = useGenerationStore((state) => state.setResult);
+  const shoppingCountry = usePreferencesStore((state) => state.shoppingCountry);
+  const preferencesHydrated = usePreferencesStore((state) => state.hydrated);
   const started = useRef<boolean>(false);
   const sweep = useSharedValue(-1);
 
@@ -30,17 +33,17 @@ export default function GeneratingScreen() {
 
   useEffect(() => {
     sweep.value = withRepeat(withTiming(1, { duration: 1900, easing: Easing.inOut(Easing.quad) }), -1, true);
-    if (!started.current && sourceImageDataUrl) {
+    if (!started.current && sourceImageDataUrl && preferencesHydrated) {
       started.current = true;
-      mutate({ sourceImageDataUrl, style, roomType, refinement: direction.trim() || undefined });
+      mutate({ sourceImageDataUrl, style, roomType, shoppingCountry, refinement: direction.trim() || undefined });
     }
-  }, [direction, mutate, roomType, sourceImageDataUrl, style, sweep]);
+  }, [direction, mutate, preferencesHydrated, roomType, shoppingCountry, sourceImageDataUrl, style, sweep]);
 
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ translateX: sweep.value * 230 }] }));
 
   const retry = () => {
     if (!sourceImageDataUrl) return;
-    mutate({ sourceImageDataUrl, style, roomType, refinement: direction.trim() || undefined });
+    mutate({ sourceImageDataUrl, style, roomType, shoppingCountry, refinement: direction.trim() || undefined });
   };
 
   if (!sourceImageDataUrl) {
