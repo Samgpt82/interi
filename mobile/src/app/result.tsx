@@ -1,11 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
-import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { ArrowLeft, Bookmark, Check, Download, RefreshCw, Share2, ShoppingBag } from 'lucide-react-native';
 import React, { useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
+import { BeforeAfterSlider } from '@/components/BeforeAfterSlider';
 import { DesignItems } from '@/components/DesignItems';
 import { IconButton, PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
 import { api } from '@/lib/api/api';
@@ -26,7 +26,6 @@ export default function ResultScreen() {
   const { saveDesign, isSaved } = useSavedDesigns();
   const designId = useRef<string>(`interi-${Date.now()}`);
   const scrollRef = useRef<ScrollView | null>(null);
-  const [view, setView] = useState<'before' | 'after'>('after');
   const [refinement, setRefinement] = useState<string>('');
   const [notice, setNotice] = useState<string | null>(null);
   const [exporting, setExporting] = useState<boolean>(false);
@@ -39,7 +38,6 @@ export default function ResultScreen() {
     },
     onSuccess: (data) => {
       setResult(data);
-      setView('after');
       setNotice('Your refinement is ready.');
       setRefinement('');
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -60,8 +58,6 @@ export default function ResultScreen() {
       </Screen>
     );
   }
-
-  const currentImage = view === 'after' ? result.imageDataUrl : sourceImageDataUrl;
 
   const saveToInteri = async () => {
     const design: SavedDesign = {
@@ -134,30 +130,23 @@ export default function ResultScreen() {
             <Text className="pb-1 text-xs capitalize" style={{ color: COLORS.olive }}>{roomLabel}</Text>
           </View>
 
-          <View className="mt-5 overflow-hidden rounded-[28px]" style={{ height: 430, backgroundColor: COLORS.sand }}>
-            <Image testID="result-image" source={{ uri: currentImage }} contentFit="cover" style={{ width: '100%', height: '100%' }} transition={300} />
-            {mutation.isPending ? <View testID="refinement-loading" className="absolute inset-0 items-center justify-center bg-black/45"><RefreshCw size={34} color={COLORS.white} /><Text className="mt-3 text-sm font-semibold" style={{ color: COLORS.white }}>Refining the composition…</Text></View> : null}
-            <View className="absolute bottom-4 left-4 flex-row rounded-full bg-black/55 p-1">
-              {(['before', 'after'] as const).map((option) => (
-                <Pressable key={option} testID={`show-${option}-button`} onPress={() => setView(option)} className="min-h-10 min-w-[82px] items-center justify-center rounded-full px-4" style={{ backgroundColor: view === option ? COLORS.paper : 'transparent' }}>
-                  <Text className="text-xs font-semibold capitalize" style={{ color: view === option ? COLORS.espresso : COLORS.white }}>{option}</Text>
-                </Pressable>
-              ))}
-            </View>
+          <View className="relative mt-5">
+            <BeforeAfterSlider beforeUri={sourceImageDataUrl} afterUri={result.imageDataUrl} />
+            {mutation.isPending ? <View testID="refinement-loading" className="absolute inset-0 items-center justify-center rounded-[28px] bg-black/45"><RefreshCw size={34} color={COLORS.white} /><Text className="mt-3 text-sm font-semibold" style={{ color: COLORS.white }}>Refining the composition…</Text></View> : null}
             <Pressable
               testID="view-design-items-button"
               accessibilityRole="button"
               accessibilityLabel={`View ${result.items?.length ?? 0} items in this design`}
               onPress={() => scrollRef.current?.scrollTo({ y: Math.max(0, itemsSectionY - 12), animated: true })}
-              className="absolute bottom-[68px] right-4 min-h-11 flex-row items-center rounded-full border border-white/50 bg-black/60 px-4 active:opacity-75">
+              className="absolute right-4 top-4 min-h-11 flex-row items-center rounded-full border border-white/50 bg-black/60 px-4 active:opacity-75">
               <ShoppingBag size={15} color={COLORS.white} />
               <Text className="ml-2 text-xs font-semibold" style={{ color: COLORS.white }}>
-                {result.items?.length ? `${result.items.length} items · Shop the room` : 'View item details'}
+                {result.items?.length ? `${result.items.length} items · Shop` : 'View item details'}
               </Text>
             </Pressable>
           </View>
 
-          <Text testID="revised-prompt" className="mt-4 text-sm italic leading-5" style={{ color: COLORS.olive }}>“{result.revisedPrompt}”</Text>
+          <Text testID="revised-prompt" numberOfLines={3} ellipsizeMode="tail" className="mt-4 text-sm italic leading-5" style={{ color: COLORS.olive }}>“{result.revisedPrompt}”</Text>
 
           <View onLayout={(event) => setItemsSectionY(event.nativeEvent.layout.y)}>
             <DesignItems items={result.items ?? []} loading={mutation.isPending} onRefine={applyItemRefinement} />

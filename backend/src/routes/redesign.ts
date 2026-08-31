@@ -39,6 +39,21 @@ const styleDescriptions: Record<RoomStyle, string> = {
     "collected bohemian design with layered textiles, artisan objects, warm woods, natural fibers, expressive pattern, plants, and relaxed character",
 };
 
+const styleSummaryDetails: Record<RoomStyle, string> = {
+  "warm-minimal": "soft neutral textiles, natural oak, and calm layered light",
+  japandi: "low-profile forms, pale woods, and handcrafted texture",
+  "modern-organic": "sculptural silhouettes, warm wood, linen, and natural stone",
+  "mid-century": "tailored shapes, walnut accents, and warm earth tones",
+  "quiet-luxury": "tailored upholstery, refined materials, and subtle tonal layers",
+  coastal: "airy linens, light woods, and sun-washed natural tones",
+  scandinavian: "clean lines, pale woods, practical storage, and warm light",
+  modern: "crisp lines, balanced contrast, and polished uncluttered finishes",
+  minimalist: "purposeful furnishings, restrained colour, and generous open space",
+  industrial: "aged wood, blackened metal, raw texture, and warm layered lighting",
+  luxury: "statement lighting, premium fabrics, rich stone, and elegant metal accents",
+  bohemian: "layered textiles, artisan objects, warm woods, and expressive pattern",
+};
+
 const roomNames: Record<RoomType, string> = {
   "living-room": "living room",
   bedroom: "bedroom",
@@ -144,6 +159,10 @@ function createInteriorPrompt(request: RedesignRoomRequest): string {
   ]
     .filter(Boolean)
     .join(" ");
+}
+
+function createDesignSummary(request: RedesignRoomRequest): string {
+  return `A considered ${request.style.replaceAll("-", " ")} ${roomNames[request.roomType]} with ${styleSummaryDetails[request.style]}. The room's architecture and perspective remain intact while furniture, finishes, and lighting form a cohesive new composition.`;
 }
 
 function dataUrlToFile(dataUrl: string): File | null {
@@ -301,15 +320,16 @@ redesignRouter.post("/", async (c) => {
     );
   }
 
-  const revisedPrompt = createInteriorPrompt(parsed.data);
+  const imagePrompt = createInteriorPrompt(parsed.data);
+  const revisedPrompt = createDesignSummary(parsed.data);
 
   try {
-    let response = await requestImageEdit(imageFile, revisedPrompt);
+    let response = await requestImageEdit(imageFile, imagePrompt);
     let result = await readOpenAIResponse(response);
 
     if (response.status >= 500) {
       await Bun.sleep(600);
-      response = await requestImageEdit(imageFile, revisedPrompt);
+      response = await requestImageEdit(imageFile, imagePrompt);
       result = await readOpenAIResponse(response);
     }
 
