@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { env } from "../env";
 import {
+  designInventorySchema,
   redesignRoomRequestSchema,
+  type DesignItem,
   type RedesignRoomRequest,
   type RedesignRoomResult,
   type RoomStyle,
@@ -56,6 +58,75 @@ interface OpenAIImageEditResponse {
     message?: string;
   };
 }
+
+interface OpenAIInventoryResponse {
+  output_text?: string;
+  output?: Array<{
+    content?: Array<{
+      type?: string;
+      text?: string;
+    }>;
+  }>;
+}
+
+const inventoryJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["items"],
+  properties: {
+    items: {
+      type: "array",
+      minItems: 4,
+      maxItems: 7,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "id",
+          "emoji",
+          "name",
+          "color",
+          "material",
+          "description",
+          "priceRange",
+          "searchTerms",
+          "colorOptions",
+          "swapSuggestions",
+        ],
+        properties: {
+          id: { type: "string" },
+          emoji: { type: "string" },
+          name: { type: "string" },
+          color: { type: "string" },
+          material: { type: "string" },
+          description: { type: "string" },
+          priceRange: { type: "string" },
+          searchTerms: { type: "string" },
+          colorOptions: {
+            type: "array",
+            minItems: 3,
+            maxItems: 5,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["name", "hex"],
+              properties: {
+                name: { type: "string" },
+                hex: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+              },
+            },
+          },
+          swapSuggestions: {
+            type: "array",
+            minItems: 3,
+            maxItems: 3,
+            items: { type: "string" },
+          },
+        },
+      },
+    },
+  },
+} as const;
 
 function createInteriorPrompt(request: RedesignRoomRequest): string {
   const refinement = request.refinement
@@ -124,6 +195,78 @@ async function requestImageEdit(imageFile: File, prompt: string): Promise<Respon
     headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },
     body: createImageEditForm(imageFile, prompt),
   });
+}
+
+function extractInventoryText(result: OpenAIInventoryResponse): string | undefined {
+  if (result.output_text) return result.output_text;
+  return result.output
+    ?.flatMap((output) => output.content ?? [])
+    .find((content) => content.type === "output_text" && content.text)
+    ?.text;
+}
+
+async function identifyDesignItems(
+  imageDataUrl: string,
+  request: RedesignRoomRequest
+): Promise<DesignItem[]> {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-5.2",
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: [
+                `Create a concise shopping inventory for the main visible furniture, lighting, textiles, and decor in this redesigned ${roomNames[request.roomType]}.`,
+                `The design style is ${styleDescriptions[request.style]}.`,
+                "Return 4 to 7 distinct, prominent items. Describe what is actually visible, without claiming an exact brand or model.",
+                "Use short useful names, realistic broad UK price ranges such as £300–£700, retailer-friendly search terms, accessible color hex values, and exactly three genuinely different swap suggestions.",
+                "The description should explain the item's placement or role in one short sentence. Choose one fitting emoji for each item.",
+              ].join(" "),
+            },
+            { type: "input_image", image_url: imageDataUrl },
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "design_inventory",
+          strict: true,
+          schema: inventoryJsonSchema,
+        },
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    console.error("OpenAI inventory analysis failed", response.status, message.slice(0, 500));
+    return [];
+  }
+
+  const result = (await response.json()) as OpenAIInventoryResponse;
+  const text = extractInventoryText(result);
+  if (!text) return [];
+
+  try {
+    const parsed = designInventorySchema.safeParse(JSON.parse(text));
+    if (!parsed.success) {
+      console.error("OpenAI inventory response failed validation", parsed.error.issues);
+      return [];
+    }
+    return parsed.data.items;
+  } catch (error) {
+    console.error("OpenAI inventory response was invalid JSON", error);
+    return [];
+  }
 }
 
 redesignRouter.post("/", async (c) => {
@@ -210,7 +353,8 @@ redesignRouter.post("/", async (c) => {
       );
     }
 
-    const data: RedesignRoomResult = { imageDataUrl, revisedPrompt };
+    const items = await identifyDesignItems(imageDataUrl, parsed.data);
+    const data: RedesignRoomResult = { imageDataUrl, revisedPrompt, items };
     return c.json({ data });
   } catch (error) {
     console.error("Unexpected redesign error", error);

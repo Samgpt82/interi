@@ -45,9 +45,28 @@ export interface RedesignRequest {
   refinement?: string;
 }
 
+export interface DesignItemColor {
+  name: string;
+  hex: string;
+}
+
+export interface DesignItem {
+  id: string;
+  emoji: string;
+  name: string;
+  color: string;
+  material: string;
+  description: string;
+  priceRange: string;
+  searchTerms: string;
+  colorOptions: DesignItemColor[];
+  swapSuggestions: string[];
+}
+
 export interface RedesignResponse {
   imageDataUrl: string;
   revisedPrompt: string;
+  items: DesignItem[];
 }
 
 export interface SavedDesign {
@@ -56,6 +75,7 @@ export interface SavedDesign {
   sourceImageDataUrl: string;
   imageDataUrl: string;
   revisedPrompt: string;
+  items?: DesignItem[];
   style: DesignStyle;
   roomType: RoomType;
 }

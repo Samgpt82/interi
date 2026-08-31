@@ -6,6 +6,7 @@ import { ArrowLeft, Bookmark, Check, Download, RefreshCw, Share2 } from 'lucide-
 import React, { useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
+import { DesignItems } from '@/components/DesignItems';
 import { IconButton, PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
 import { api } from '@/lib/api/api';
 import { prepareImageForUpload, saveImageToLibrary, shareImage } from '@/lib/image-utils';
@@ -67,6 +68,7 @@ export default function ResultScreen() {
       sourceImageDataUrl,
       imageDataUrl: result.imageDataUrl,
       revisedPrompt: result.revisedPrompt,
+      items: result.items,
       style,
       roomType,
     };
@@ -98,6 +100,12 @@ export default function ResultScreen() {
     if (!refinement.trim()) return;
     setNotice(null);
     mutation.mutate({ sourceImageDataUrl: result.imageDataUrl, style, roomType, refinement: refinement.trim() });
+  };
+
+  const applyItemRefinement = (instruction: string) => {
+    setNotice(null);
+    setRefinement('');
+    mutation.mutate({ sourceImageDataUrl: result.imageDataUrl, style, roomType, refinement: instruction });
   };
 
   return (
@@ -137,6 +145,8 @@ export default function ResultScreen() {
           </View>
 
           <Text testID="revised-prompt" className="mt-4 text-sm italic leading-5" style={{ color: COLORS.olive }}>“{result.revisedPrompt}”</Text>
+
+          <DesignItems items={result.items ?? []} loading={mutation.isPending} onRefine={applyItemRefinement} />
 
           <View className="mt-6 flex-row gap-3">
             <View className="flex-1"><IconButton icon={saved ? Check : Bookmark} label={saved ? 'Saved' : 'Save'} onPress={() => void saveToInteri()} testID="save-design-button" /></View>
