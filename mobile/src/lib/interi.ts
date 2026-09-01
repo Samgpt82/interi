@@ -76,12 +76,39 @@ export interface RedesignResponse {
 
 export interface SavedDesign {
   id: string;
+  title: string;
   createdAt: string;
+  updatedAt: string;
   sourceImageDataUrl: string;
   imageDataUrl: string;
   revisedPrompt: string;
-  items?: DesignItem[];
-  shoppingCountry?: ShoppingCountry;
+  items: DesignItem[];
+  shoppingCountry: ShoppingCountry;
+  style: DesignStyle;
+  roomType: RoomType;
+}
+
+export interface ProjectResponse {
+  id: string;
+  title: string;
+  sourceImageUrl: string;
+  imageUrl: string;
+  revisedPrompt: string;
+  items: DesignItem[];
+  shoppingCountry: ShoppingCountry;
+  style: DesignStyle;
+  roomType: RoomType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaveProjectRequest {
+  title: string;
+  sourceImageDataUrl: string;
+  imageDataUrl: string;
+  revisedPrompt: string;
+  items: DesignItem[];
+  shoppingCountry: ShoppingCountry;
   style: DesignStyle;
   roomType: RoomType;
 }

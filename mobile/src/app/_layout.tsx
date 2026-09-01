@@ -3,15 +3,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
+import { useSession } from '@/lib/auth/use-session';
 import { COLORS } from '@/lib/interi';
 import { SavedDesignsProvider } from '@/lib/state/saved-designs-context';
 
-export const unstable_settings = { initialRouteName: '(tabs)' };
+export const unstable_settings = { initialRouteName: '(app)' };
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -35,45 +36,46 @@ const interiTheme: Theme = {
 };
 
 export function RootLayoutNav() {
+  const { data: session, isLoading } = useSession();
+
+  if (isLoading) return null;
+
   return (
     <ThemeProvider value={interiTheme}>
       <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: COLORS.chalk } }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="style" />
-        <Stack.Screen name="generating" options={{ gestureEnabled: false }} />
-        <Stack.Screen name="result" />
-        <Stack.Screen
-          name="settings"
-          options={{
-            presentation: 'formSheet',
-            sheetAllowedDetents: [0.75],
-            sheetGrabberVisible: true,
-          }}
-        />
+        <Stack.Protected guard={!!session?.user}>
+          <Stack.Screen name="(app)" />
+        </Stack.Protected>
+        <Stack.Protected guard={!session?.user}>
+          <Stack.Screen name="sign-in" />
+          <Stack.Screen name="verify-otp" />
+        </Stack.Protected>
       </Stack>
     </ThemeProvider>
   );
 }
 
+function AppShell() {
+  const { isLoading } = useSession();
+  if (isLoading) return null;
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardProvider>
+        <View style={{ flex: 1, backgroundColor: COLORS.chalk }} onLayout={() => void SplashScreen.hideAsync()}>
+          <StatusBar style="dark" />
+          <RootLayoutNav />
+        </View>
+      </KeyboardProvider>
+    </GestureHandlerRootView>
+  );
+}
+
 export default function RootLayout() {
-  const [ready] = useState<boolean>(true);
-  const handleLayout = useCallback(() => {
-    if (ready) void SplashScreen.hideAsync();
-  }, [ready]);
-
-  if (!ready) return null;
-
   return (
     <QueryClientProvider client={queryClient}>
       <SavedDesignsProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <KeyboardProvider>
-            <View style={{ flex: 1, backgroundColor: COLORS.chalk }} onLayout={handleLayout}>
-              <StatusBar style="dark" />
-              <RootLayoutNav />
-            </View>
-          </KeyboardProvider>
-        </GestureHandlerRootView>
+        <AppShell />
       </SavedDesignsProvider>
     </QueryClientProvider>
   );

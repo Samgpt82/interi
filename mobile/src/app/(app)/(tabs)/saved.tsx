@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { ArrowUpRight, Bookmark, Trash2 } from 'lucide-react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 
 import { Screen, Wordmark } from '@/components/InteriUI';
@@ -11,17 +11,20 @@ import { useGenerationStore } from '@/lib/state/generation-store';
 import { useSavedDesigns } from '@/lib/state/saved-designs-context';
 
 export default function SavedScreen() {
-  const { designs, hydrated, removeDesign } = useSavedDesigns();
+  const { designs, hydrated, error, refresh, removeDesign } = useSavedDesigns();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const setSource = useGenerationStore((state) => state.setSource);
   const setStyle = useGenerationStore((state) => state.setStyle);
   const setRoomType = useGenerationStore((state) => state.setRoomType);
   const setResult = useGenerationStore((state) => state.setResult);
+  const setProjectId = useGenerationStore((state) => state.setProjectId);
 
   const openDesign = (design: SavedDesign) => {
     setSource(design.sourceImageDataUrl, design.sourceImageDataUrl);
     setStyle(design.style);
     setRoomType(design.roomType);
-    setResult({ imageDataUrl: design.imageDataUrl, revisedPrompt: design.revisedPrompt, items: design.items ?? [], shoppingCountry: design.shoppingCountry ?? 'GB' });
+    setResult({ imageDataUrl: design.imageDataUrl, revisedPrompt: design.revisedPrompt, items: design.items, shoppingCountry: design.shoppingCountry });
+    setProjectId(design.id);
     router.push('/result');
   };
 
@@ -32,6 +35,31 @@ export default function SavedScreen() {
       </Screen>
     );
   }
+
+  if (error) {
+    return (
+      <Screen testID="saved-error-screen">
+        <View className="flex-1 items-center justify-center px-8">
+          <Bookmark size={28} color={COLORS.coral} />
+          <Text className="mt-5 text-center text-2xl" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>Your projects are still safe.</Text>
+          <Text testID="saved-error-message" className="mt-3 text-center text-sm leading-5" style={{ color: COLORS.olive }}>{error}</Text>
+          <Pressable testID="retry-projects-button" onPress={() => void refresh()} className="mt-6 min-h-12 justify-center rounded-full px-6" style={{ backgroundColor: COLORS.espresso }}>
+            <Text className="text-sm font-semibold" style={{ color: COLORS.white }}>Try again</Text>
+          </Pressable>
+        </View>
+      </Screen>
+    );
+  }
+
+  const deleteProject = async (id: string) => {
+    setDeleteError(null);
+    try {
+      await removeDesign(id);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (caught) {
+      setDeleteError(caught instanceof Error ? caught.message : 'Unable to delete this project.');
+    }
+  };
 
   return (
     <Screen testID="saved-screen">
@@ -45,7 +73,8 @@ export default function SavedScreen() {
           <View className="mb-8">
             <Wordmark />
             <Text className="mt-9 text-[40px] leading-[43px]" style={{ color: COLORS.espresso, fontFamily: 'Georgia', letterSpacing: -1.4 }}>Rooms worth returning to.</Text>
-            <Text className="mt-3 text-sm leading-5" style={{ color: COLORS.olive }}>Your private edit of considered spaces.</Text>
+            <Text className="mt-3 text-sm leading-5" style={{ color: COLORS.olive }}>Your private projects, synced to your account.</Text>
+            {deleteError ? <Text testID="delete-project-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>{deleteError}</Text> : null}
           </View>
         }
         ListEmptyComponent={
@@ -65,11 +94,11 @@ export default function SavedScreen() {
             <Pressable testID={`saved-design-${item.id}`} onPress={() => openDesign(item)} className="mb-4 flex-1 overflow-hidden rounded-[22px] border active:opacity-80" style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper }}>
               <Image source={{ uri: item.imageDataUrl }} contentFit="cover" style={{ width: '100%', aspectRatio: 0.82 }} transition={200} />
               <View className="p-3">
-                <Text className="text-base" numberOfLines={1} style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>{styleLabel}</Text>
+                <Text className="text-base" numberOfLines={1} style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>{item.title || styleLabel}</Text>
                 <Text className="mt-1 text-[10px] uppercase tracking-[1.5px]" style={{ color: COLORS.olive }}>{roomLabel}</Text>
                 <Pressable
                   testID={`delete-design-${item.id}`}
-                  onPress={(event) => { event.stopPropagation(); void removeDesign(item.id); void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  onPress={(event) => { event.stopPropagation(); void deleteProject(item.id); }}
                   className="mt-3 h-10 w-10 items-center justify-center self-end rounded-full border"
                   style={{ borderColor: COLORS.line }}>
                   <Trash2 size={15} color={COLORS.olive} />

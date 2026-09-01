@@ -75,3 +75,44 @@ export interface RedesignRoomResult {
   items: DesignItem[];
   shoppingCountry: ShoppingCountry;
 }
+
+const projectImageDataSchema = z
+  .string()
+  .min(100)
+  .max(16_000_000)
+  .regex(/^data:image\/(png|jpe?g|webp);base64,/, "A valid project image is required");
+
+const projectImageReferenceSchema = z.union([projectImageDataSchema, z.string().url().max(2_000)]);
+
+export const saveProjectRequestSchema = z.object({
+  title: z.string().trim().min(1).max(80),
+  sourceImageDataUrl: projectImageDataSchema,
+  imageDataUrl: projectImageDataSchema,
+  revisedPrompt: z.string().trim().min(1).max(2_000),
+  items: z.array(designItemSchema).max(12),
+  shoppingCountry: shoppingCountrySchema,
+  style: roomStyleSchema,
+  roomType: roomTypeSchema,
+});
+
+export const updateProjectRequestSchema = saveProjectRequestSchema.extend({
+  sourceImageDataUrl: projectImageReferenceSchema,
+  imageDataUrl: projectImageReferenceSchema,
+});
+
+export type SaveProjectRequest = z.infer<typeof saveProjectRequestSchema>;
+export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
+
+export interface ProjectResponse {
+  id: string;
+  title: string;
+  sourceImageUrl: string;
+  imageUrl: string;
+  revisedPrompt: string;
+  items: DesignItem[];
+  shoppingCountry: ShoppingCountry;
+  style: RoomStyle;
+  roomType: RoomType;
+  createdAt: string;
+  updatedAt: string;
+}

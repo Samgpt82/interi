@@ -9,6 +9,11 @@ const envSchema = z.object({
   PORT: z.string().optional().default("3000"),
   NODE_ENV: z.string().optional(),
 
+  // Application services
+  BACKEND_URL: z.string().url("BACKEND_URL must be a valid URL"),
+  DATABASE_URL: z.string().default("file:./dev.db"),
+  BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
+
   // AI services
   OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
 });

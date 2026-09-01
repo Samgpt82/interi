@@ -22,9 +22,10 @@ export default function ResultScreen() {
   const roomType = useGenerationStore((state) => state.roomType);
   const result = useGenerationStore((state) => state.result);
   const setResult = useGenerationStore((state) => state.setResult);
+  const projectId = useGenerationStore((state) => state.projectId);
+  const setProjectId = useGenerationStore((state) => state.setProjectId);
   const reset = useGenerationStore((state) => state.reset);
-  const { saveDesign, isSaved } = useSavedDesigns();
-  const designId = useRef<string>(`interi-${Date.now()}`);
+  const { saveDesign, isSaved, saving } = useSavedDesigns();
   const scrollRef = useRef<ScrollView | null>(null);
   const [refinement, setRefinement] = useState<string>('');
   const [notice, setNotice] = useState<string | null>(null);
@@ -46,7 +47,7 @@ export default function ResultScreen() {
 
   const styleLabel = useMemo(() => STYLES.find((item) => item.id === style)?.label ?? style, [style]);
   const roomLabel = useMemo(() => ROOM_TYPES.find((item) => item.id === roomType)?.label ?? roomType, [roomType]);
-  const saved = isSaved(designId.current);
+  const saved = isSaved(projectId);
 
   if (!sourceImageDataUrl || !result) {
     return (
@@ -60,9 +61,13 @@ export default function ResultScreen() {
   }
 
   const saveToInteri = async () => {
+    setNotice(null);
+    const now = new Date().toISOString();
     const design: SavedDesign = {
-      id: designId.current,
-      createdAt: new Date().toISOString(),
+      id: projectId ?? '',
+      title: `${styleLabel} ${roomLabel.toLowerCase()}`,
+      createdAt: now,
+      updatedAt: now,
       sourceImageDataUrl,
       imageDataUrl: result.imageDataUrl,
       revisedPrompt: result.revisedPrompt,
@@ -71,9 +76,14 @@ export default function ResultScreen() {
       style,
       roomType,
     };
-    await saveDesign(design);
-    setNotice('Saved to your Interi collection.');
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      const savedDesign = await saveDesign(design);
+      setProjectId(savedDesign.id);
+      setNotice(projectId ? 'Project updated.' : 'Saved to your projects.');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Unable to save this project.');
+    }
   };
 
   const exportImage = async () => {
@@ -154,7 +164,7 @@ export default function ResultScreen() {
           </View>
 
           <View className="mt-6 flex-row gap-3">
-            <View className="flex-1"><IconButton icon={saved ? Check : Bookmark} label={saved ? 'Saved' : 'Save'} onPress={() => void saveToInteri()} testID="save-design-button" /></View>
+            <View className="flex-1"><IconButton icon={saved ? Check : Bookmark} label={saving ? 'Saving…' : saved ? 'Update' : 'Save'} onPress={() => { if (!saving) void saveToInteri(); }} testID="save-design-button" /></View>
             <View className="flex-1"><IconButton icon={Download} label={exporting ? 'Saving…' : 'Photos'} onPress={() => void exportImage()} testID="export-image-button" /></View>
             <Pressable testID="share-design-button" onPress={() => void shareImage(result.imageDataUrl)} className="h-12 w-12 items-center justify-center rounded-full border active:opacity-60" style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper }}><Share2 size={18} color={COLORS.espresso} /></Pressable>
           </View>

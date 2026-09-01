@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Bookmark, WandSparkles } from 'lucide-react-native';
+import { Bookmark, CircleUserRound, WandSparkles } from 'lucide-react-native';
 import React from 'react';
 
 import { COLORS } from '@/lib/interi';
@@ -32,9 +32,17 @@ export default function TabLayout() {
       <Tabs.Screen
         name="saved"
         options={{
-          title: 'Saved',
-          tabBarButtonTestID: 'saved-tab',
+          title: 'Projects',
+          tabBarButtonTestID: 'projects-tab',
           tabBarIcon: ({ color, focused }) => <Bookmark size={focused ? 24 : 22} color={color} strokeWidth={focused ? 2.2 : 1.8} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarButtonTestID: 'profile-tab',
+          tabBarIcon: ({ color, focused }) => <CircleUserRound size={focused ? 24 : 22} color={color} strokeWidth={focused ? 2.2 : 1.8} />,
         }}
       />
     </Tabs>

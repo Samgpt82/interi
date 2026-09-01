@@ -9,11 +9,13 @@ interface GenerationState {
   roomType: RoomType;
   direction: string;
   result: RedesignResponse | null;
+  projectId: string | null;
   setSource: (dataUrl: string, uri: string) => void;
   setStyle: (style: DesignStyle) => void;
   setRoomType: (roomType: RoomType) => void;
   setDirection: (direction: string) => void;
   setResult: (result: RedesignResponse) => void;
+  setProjectId: (projectId: string | null) => void;
   reset: () => void;
 }
 
@@ -24,14 +26,16 @@ const initialState = {
   roomType: 'living-room' as RoomType,
   direction: '',
   result: null,
+  projectId: null,
 };
 
 export const useGenerationStore = create<GenerationState>((set) => ({
   ...initialState,
-  setSource: (sourceImageDataUrl, sourceImageUri) => set({ sourceImageDataUrl, sourceImageUri, result: null }),
+  setSource: (sourceImageDataUrl, sourceImageUri) => set({ sourceImageDataUrl, sourceImageUri, result: null, projectId: null }),
   setStyle: (style) => set({ style }),
   setRoomType: (roomType) => set({ roomType }),
   setDirection: (direction) => set({ direction }),
   setResult: (result) => set({ result }),
+  setProjectId: (projectId) => set({ projectId }),
   reset: () => set(initialState),
 }));
