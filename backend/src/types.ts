@@ -76,16 +76,29 @@ export interface RedesignRoomResult {
   shoppingCountry: ShoppingCountry;
 }
 
-const projectImageDataSchema = z
+export const projectImageDataSchema = z
   .string()
   .min(100)
   .max(16_000_000)
   .regex(/^data:image\/(png|jpe?g|webp);base64,/, "A valid project image is required");
 
-const projectImageReferenceSchema = z.union([projectImageDataSchema, z.string().url().max(2_000)]);
+export const folderNameSchema = z.string().trim().min(1).max(80);
 
-export const saveProjectRequestSchema = z.object({
-  title: z.string().trim().min(1).max(80),
+export const createFolderRequestSchema = z.object({
+  name: folderNameSchema,
+});
+
+export const updateFolderRequestSchema = createFolderRequestSchema;
+
+export const folderResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  projectCount: z.number().int().nonnegative(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const projectVersionContentSchema = z.object({
   sourceImageDataUrl: projectImageDataSchema,
   imageDataUrl: projectImageDataSchema,
   revisedPrompt: z.string().trim().min(1).max(2_000),
@@ -95,24 +108,76 @@ export const saveProjectRequestSchema = z.object({
   roomType: roomTypeSchema,
 });
 
-export const updateProjectRequestSchema = saveProjectRequestSchema.extend({
-  sourceImageDataUrl: projectImageReferenceSchema,
-  imageDataUrl: projectImageReferenceSchema,
+export const saveProjectRequestSchema = projectVersionContentSchema.extend({
+  title: z.string().trim().min(1).max(80),
+  folderId: z.string().min(1).nullable().optional(),
 });
 
+export const updateProjectRequestSchema = z
+  .object({
+    title: z.string().trim().min(1).max(80).optional(),
+    folderId: z.string().min(1).nullable().optional(),
+  })
+  .refine((value) => value.title !== undefined || value.folderId !== undefined, {
+    message: "A title or folder must be provided.",
+  });
+
+export const appendProjectVersionRequestSchema = projectVersionContentSchema.extend({
+  baseVersionId: z.string().min(1).optional(),
+  refinement: z.string().trim().min(1).max(500).optional(),
+});
+
+export const projectFolderSummarySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+export const projectVersionResponseSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  number: z.number().int().positive(),
+  sourceImageUrl: z.string(),
+  imageUrl: z.string(),
+  revisedPrompt: z.string(),
+  items: z.array(designItemSchema),
+  shoppingCountry: shoppingCountrySchema,
+  style: roomStyleSchema,
+  roomType: roomTypeSchema,
+  baseVersionId: z.string().nullable(),
+  refinement: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+export const projectVersionSummarySchema = projectVersionResponseSchema.pick({
+  id: true,
+  number: true,
+  imageUrl: true,
+  createdAt: true,
+});
+
+export const projectSummaryResponseSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  folder: projectFolderSummarySchema.nullable(),
+  latestVersion: projectVersionSummarySchema,
+  versionCount: z.number().int().positive(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const projectDetailResponseSchema = projectSummaryResponseSchema.extend({
+  versions: z.array(projectVersionResponseSchema),
+});
+
+export type CreateFolderRequest = z.infer<typeof createFolderRequestSchema>;
+export type UpdateFolderRequest = z.infer<typeof updateFolderRequestSchema>;
+export type FolderResponse = z.infer<typeof folderResponseSchema>;
+export type ProjectVersionContent = z.infer<typeof projectVersionContentSchema>;
 export type SaveProjectRequest = z.infer<typeof saveProjectRequestSchema>;
 export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
-
-export interface ProjectResponse {
-  id: string;
-  title: string;
-  sourceImageUrl: string;
-  imageUrl: string;
-  revisedPrompt: string;
-  items: DesignItem[];
-  shoppingCountry: ShoppingCountry;
-  style: RoomStyle;
-  roomType: RoomType;
-  createdAt: string;
-  updatedAt: string;
-}
+export type AppendProjectVersionRequest = z.infer<typeof appendProjectVersionRequestSchema>;
+export type ProjectFolderSummary = z.infer<typeof projectFolderSummarySchema>;
+export type ProjectVersionResponse = z.infer<typeof projectVersionResponseSchema>;
+export type ProjectVersionSummary = z.infer<typeof projectVersionSummarySchema>;
+export type ProjectSummaryResponse = z.infer<typeof projectSummaryResponseSchema>;
+export type ProjectDetailResponse = z.infer<typeof projectDetailResponseSchema>;

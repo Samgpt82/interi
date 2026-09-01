@@ -18,6 +18,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   projects      Project[]
+  folders       Folder[]
 }
 
 model Session {
@@ -58,10 +59,25 @@ model Verification {
   updatedAt  DateTime @updatedAt
 }
 
+model Folder {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  projects  Project[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId, updatedAt])
+}
+
 model Project {
-  id                String   @id @default(cuid())
+  id                String           @id @default(cuid())
   userId            String
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folderId          String?
+  folder            Folder?          @relation(fields: [folderId], references: [id], onDelete: SetNull)
   title             String
   style             String
   roomType          String
@@ -72,8 +88,35 @@ model Project {
   sourceImageFileId String
   imageUrl          String
   imageFileId       String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  versions          ProjectVersion[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@index([userId, updatedAt])
+  @@index([folderId])
+}
+
+model ProjectVersion {
+  id                String           @id @default(cuid())
+  projectId         String
+  project           Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  number            Int
+  sourceImageUrl    String
+  sourceImageFileId String
+  imageUrl          String
+  imageFileId       String
+  revisedPrompt     String
+  itemsJson         String
+  shoppingCountry   String
+  style             String
+  roomType          String
+  baseVersionId     String?
+  baseVersion       ProjectVersion?  @relation("VersionLineage", fields: [baseVersionId], references: [id], onDelete: SetNull)
+  derivedVersions   ProjectVersion[] @relation("VersionLineage")
+  refinement        String?
+  createdAt         DateTime         @default(now())
+
+  @@unique([projectId, number])
+  @@index([projectId, createdAt])
+  @@index([baseVersionId])
 }

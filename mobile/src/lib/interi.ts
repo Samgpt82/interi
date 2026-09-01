@@ -49,11 +49,7 @@ export interface RedesignRequest {
   refinement?: string;
 }
 
-export interface DesignItemColor {
-  name: string;
-  hex: string;
-}
-
+export interface DesignItemColor { name: string; hex: string }
 export interface DesignItem {
   id: string;
   emoji: string;
@@ -74,36 +70,42 @@ export interface RedesignResponse {
   shoppingCountry: ShoppingCountry;
 }
 
-export interface SavedDesign {
+export interface FolderResponse {
   id: string;
-  title: string;
+  name: string;
+  projectCount: number;
   createdAt: string;
   updatedAt: string;
-  sourceImageDataUrl: string;
-  imageDataUrl: string;
-  revisedPrompt: string;
-  items: DesignItem[];
-  shoppingCountry: ShoppingCountry;
-  style: DesignStyle;
-  roomType: RoomType;
 }
 
-export interface ProjectResponse {
-  id: string;
-  title: string;
+export interface ProjectFolderSummary { id: string; name: string }
+export interface ProjectVersionSummary { id: string; number: number; imageUrl: string; createdAt: string }
+export interface ProjectVersionResponse extends ProjectVersionSummary {
+  projectId: string;
   sourceImageUrl: string;
-  imageUrl: string;
   revisedPrompt: string;
   items: DesignItem[];
   shoppingCountry: ShoppingCountry;
   style: DesignStyle;
   roomType: RoomType;
+  baseVersionId: string | null;
+  refinement: string | null;
+}
+
+export interface ProjectSummaryResponse {
+  id: string;
+  title: string;
+  folder: ProjectFolderSummary | null;
+  latestVersion: ProjectVersionSummary;
+  versionCount: number;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface SaveProjectRequest {
-  title: string;
+export interface ProjectDetailResponse extends ProjectSummaryResponse { versions: ProjectVersionResponse[] }
+export type SavedDesign = ProjectSummaryResponse;
+
+export interface ProjectVersionContent {
   sourceImageDataUrl: string;
   imageDataUrl: string;
   revisedPrompt: string;
@@ -112,3 +114,8 @@ export interface SaveProjectRequest {
   style: DesignStyle;
   roomType: RoomType;
 }
+export interface SaveProjectRequest extends ProjectVersionContent { title: string; folderId?: string | null }
+export interface AppendProjectVersionRequest extends ProjectVersionContent { baseVersionId?: string; refinement?: string }
+export interface UpdateProjectRequest { title?: string; folderId?: string | null }
+export interface CreateFolderRequest { name: string }
+export type UpdateFolderRequest = CreateFolderRequest;
