@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { Bookmark, Check, Folder, FolderPlus, MoreHorizontal, Trash2, X } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { Screen, Wordmark } from '@/components/InteriUI';
 import { COLORS, type ProjectSummaryResponse } from '@/lib/interi';
@@ -115,12 +115,16 @@ export default function SavedScreen() {
       />
 
       <Modal visible={!!sheet} transparent animationType="fade" onRequestClose={() => setSheet(null)}>
-        <View testID="saved-action-sheet" className="flex-1 justify-end bg-black/35"><Pressable testID="close-sheet-backdrop" className="absolute inset-0" onPress={() => setSheet(null)} /><View className="rounded-t-[32px] px-5 pb-10 pt-5" style={{ backgroundColor: COLORS.chalk }}><View className="mb-5 flex-row items-center"><Text className="flex-1 text-2xl" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>{sheet?.kind === 'create-folder' ? 'New folder' : sheet?.kind === 'delete-folder' ? sheet.folderName : sheet?.kind === 'project' ? sheet.project.title : ''}</Text><Pressable testID="close-sheet-button" onPress={() => setSheet(null)} className="h-11 w-11 items-center justify-center rounded-full border" style={{ borderColor: COLORS.line }}><X size={18} color={COLORS.espresso} /></Pressable></View>
+        <KeyboardAvoidingView
+          testID="saved-action-sheet"
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1 justify-end bg-black/35">
+          <Pressable testID="close-sheet-backdrop" className="absolute inset-0" onPress={() => setSheet(null)} /><View className="rounded-t-[32px] px-5 pb-10 pt-5" style={{ backgroundColor: COLORS.chalk }}><View className="mb-5 flex-row items-center"><Text className="flex-1 text-2xl" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>{sheet?.kind === 'create-folder' ? 'New folder' : sheet?.kind === 'delete-folder' ? sheet.folderName : sheet?.kind === 'project' ? sheet.project.title : ''}</Text><Pressable testID="close-sheet-button" onPress={() => setSheet(null)} className="h-11 w-11 items-center justify-center rounded-full border" style={{ borderColor: COLORS.line }}><X size={18} color={COLORS.espresso} /></Pressable></View>
           {sheet?.kind === 'create-folder' ? <><TextInput testID="folder-name-input" value={folderName} onChangeText={setFolderName} autoFocus maxLength={80} placeholder="e.g. Living room ideas" placeholderTextColor={COLORS.olive} className="min-h-14 rounded-2xl border px-4 text-base" style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper, color: COLORS.espresso }} /><Pressable testID="submit-folder-button" disabled={!folderName.trim() || busy} onPress={() => void submitFolder()} className="mt-4 min-h-12 items-center justify-center rounded-full" style={{ backgroundColor: COLORS.espresso }}><Text className="font-semibold" style={{ color: COLORS.white }}>{busy ? 'Creating…' : 'Create folder'}</Text></Pressable></> : null}
           {sheet?.kind === 'delete-folder' ? <><Text className="text-sm leading-5" style={{ color: COLORS.olive }}>Deleting this folder keeps its projects safe and moves them to Unfiled.</Text><Pressable testID="delete-folder-button" disabled={busy} onPress={() => void deleteFolder(sheet.folderId)} className="mt-5 min-h-12 flex-row items-center justify-center rounded-full" style={{ backgroundColor: COLORS.coral }}><Trash2 size={17} color={COLORS.white} /><Text className="ml-2 font-semibold" style={{ color: COLORS.white }}>{busy ? 'Deleting…' : 'Delete folder'}</Text></Pressable></> : null}
           {sheet?.kind === 'project' ? <><Text className="mb-3 text-[11px] font-semibold uppercase tracking-[2px]" style={{ color: COLORS.olive }}>Move to</Text><ScrollView style={{ maxHeight: 260 }}>{[{ id: null, name: 'Unfiled' }, ...folders].map((folder) => { const selected = sheet.project.folder?.id === folder.id || (!sheet.project.folder && folder.id === null); return <Pressable key={folder.id ?? 'unfiled'} testID={`move-project-${folder.id ?? 'unfiled'}`} onPress={() => void move(sheet.project, folder.id)} className="min-h-14 flex-row items-center border-b px-2" style={{ borderBottomColor: COLORS.line }}><Folder size={18} color={COLORS.oliveDark} /><Text className="ml-3 flex-1 text-base" style={{ color: COLORS.espresso }}>{folder.name}</Text>{selected ? <Check size={18} color={COLORS.coral} /> : null}</Pressable>; })}</ScrollView><Pressable testID="delete-project-button" disabled={busy} onPress={() => void deleteProject(sheet.project)} className="mt-5 min-h-12 flex-row items-center justify-center rounded-full border" style={{ borderColor: COLORS.coral }}><Trash2 size={17} color={COLORS.coral} /><Text className="ml-2 font-semibold" style={{ color: COLORS.coral }}>Delete project</Text></Pressable></> : null}
           {actionError ? <Text testID="sheet-action-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>{actionError}</Text> : null}
-        </View></View>
+        </View></KeyboardAvoidingView>
       </Modal>
     </Screen>
   );
