@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
@@ -38,7 +38,14 @@ const interiTheme: Theme = {
 export function RootLayoutNav() {
   const { data: session, isLoading } = useSession();
 
-  if (isLoading) return null;
+  if (isLoading) {
+    return (
+      <View testID="session-loading" style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.chalk }}>
+        <ActivityIndicator color={COLORS.coral} />
+        <Text style={{ marginTop: 12, color: COLORS.olive }}>Opening your studio…</Text>
+      </View>
+    );
+  }
 
   return (
     <ThemeProvider value={interiTheme}>
@@ -56,9 +63,6 @@ export function RootLayoutNav() {
 }
 
 function AppShell() {
-  const { isLoading } = useSession();
-  if (isLoading) return null;
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
