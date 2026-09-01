@@ -1,9 +1,9 @@
 import { useMutation } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { ArrowLeft, Bookmark, Check, Download, Folder, RefreshCw, Share2, ShoppingBag, X } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, Check, Download, Folder, Layers3, Plus, RefreshCw, Share2, ShoppingBag, X } from 'lucide-react-native';
 import React, { useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { BeforeAfterSlider } from '@/components/BeforeAfterSlider';
 import { DesignItems } from '@/components/DesignItems';
@@ -23,7 +23,6 @@ export default function ResultScreen() {
   const result = useGenerationStore((state) => state.result);
   const projectId = useGenerationStore((state) => state.projectId);
   const projectTitle = useGenerationStore((state) => state.projectTitle);
-  const projectFolderId = useGenerationStore((state) => state.projectFolderId);
   const versions = useGenerationStore((state) => state.versions);
   const activeVersionId = useGenerationStore((state) => state.activeVersionId);
   const activeVersionNumber = useGenerationStore((state) => state.activeVersionNumber);
@@ -34,13 +33,17 @@ export default function ResultScreen() {
   const selectVersion = useGenerationStore((state) => state.selectVersion);
   const addVersion = useGenerationStore((state) => state.addVersion);
   const reset = useGenerationStore((state) => state.reset);
-  const { folders, createProject, appendProjectVersion, saving } = useSavedDesigns();
+  const { designs, folders, fetchProjectDetail, createProject, appendProjectVersion, saving } = useSavedDesigns();
   const scrollRef = useRef<ScrollView | null>(null);
   const [refinement, setRefinement] = useState<string>('');
   const [notice, setNotice] = useState<string | null>(null);
   const [exporting, setExporting] = useState<boolean>(false);
   const [itemsSectionY, setItemsSectionY] = useState<number>(0);
-  const [folderSheet, setFolderSheet] = useState<boolean>(false);
+  const [saveSheet, setSaveSheet] = useState<boolean>(false);
+  const [creatingProject, setCreatingProject] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [newProjectTitle, setNewProjectTitle] = useState<string>('');
+  const [newProjectFolderId, setNewProjectFolderId] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: async (request: RedesignRequest) => api.post<RedesignResponse>('/api/redesign', { ...request, sourceImageDataUrl: await prepareImageForUpload(request.sourceImageDataUrl) }),
@@ -58,25 +61,10 @@ export default function ResultScreen() {
 
   if (!sourceImageDataUrl || !result) return <Screen testID="result-missing-state"><View className="flex-1 justify-center px-6"><Text className="text-3xl" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>Your next room starts with a photo.</Text><View className="mt-6"><PrimaryButton label="Create a design" onPress={() => router.replace('/')} testID="result-home-button" /></View></View></Screen>;
 
-  const saveVersion = async (folderId?: string | null) => {
+  const saveVersion = async () => {
     setNotice(null);
     try {
-      if (!projectId) {
-        const project = await createProject({
-          title: `${styleLabel} ${roomLabel.toLowerCase()}`,
-          folderId: folderId ?? null,
-          sourceImageDataUrl,
-          imageDataUrl: result.imageDataUrl,
-          revisedPrompt: result.revisedPrompt,
-          items: result.items,
-          shoppingCountry: result.shoppingCountry,
-          style,
-          roomType,
-        });
-        loadProject(project, project.latestVersion.id);
-        setFolderSheet(false);
-        setNotice('Saved as version 1.');
-      } else if (dirty) {
+      if (projectId && dirty) {
         const version = await appendProjectVersion(projectId, {
           sourceImageDataUrl: selectedBase?.imageUrl ?? sourceImageDataUrl,
           imageDataUrl: result.imageDataUrl,
@@ -99,6 +87,72 @@ export default function ResultScreen() {
     }
   };
 
+  const closeSaveSheet = () => {
+    if (saving) return;
+    setSaveSheet(false);
+    setCreatingProject(false);
+    setSaveError(null);
+  };
+
+  const openSaveSheet = () => {
+    setNewProjectTitle(`${styleLabel} ${roomLabel.toLowerCase()}`);
+    setNewProjectFolderId(null);
+    setCreatingProject(false);
+    setSaveError(null);
+    setNotice(null);
+    setSaveSheet(true);
+  };
+
+  const createNewProject = async () => {
+    const title = newProjectTitle.trim();
+    if (!title) return;
+    setSaveError(null);
+    setNotice(null);
+    try {
+      const project = await createProject({
+        title,
+        folderId: newProjectFolderId,
+        sourceImageDataUrl,
+        imageDataUrl: result.imageDataUrl,
+        revisedPrompt: result.revisedPrompt,
+        items: result.items,
+        shoppingCountry: result.shoppingCountry,
+        style,
+        roomType,
+      });
+      loadProject(project, project.latestVersion.id);
+      setSaveSheet(false);
+      setCreatingProject(false);
+      setNotice('Created project and saved as version 1.');
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (caught) {
+      setSaveError(caught instanceof Error ? caught.message : 'Unable to create this project.');
+    }
+  };
+
+  const saveToExistingProject = async (targetProjectId: string, title: string) => {
+    setSaveError(null);
+    setNotice(null);
+    try {
+      const version = await appendProjectVersion(targetProjectId, {
+        sourceImageDataUrl,
+        imageDataUrl: result.imageDataUrl,
+        revisedPrompt: result.revisedPrompt,
+        items: result.items,
+        shoppingCountry: result.shoppingCountry,
+        style,
+        roomType,
+      });
+      const project = await fetchProjectDetail(targetProjectId);
+      loadProject(project, version.id);
+      setSaveSheet(false);
+      setNotice(`Saved to ${title} as version ${version.number}.`);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (caught) {
+      setSaveError(caught instanceof Error ? caught.message : 'Unable to save to this project.');
+    }
+  };
+
   const exportImage = async () => {
     setExporting(true); setNotice(null);
     try { await saveImageToLibrary(result.imageDataUrl); setNotice(Platform.OS === 'web' ? 'Download started.' : 'Saved to your photo library.'); }
@@ -114,7 +168,7 @@ export default function ResultScreen() {
   };
   const submitRefinement = () => { const instruction = refinement.trim(); if (instruction) runRefinement(instruction); };
   const applyItemRefinement = (instruction: string) => { setRefinement(''); runRefinement(instruction); };
-  const handleSave = () => { if (!projectId) setFolderSheet(true); else void saveVersion(projectFolderId); };
+  const handleSave = () => { if (!projectId) openSaveSheet(); else void saveVersion(); };
 
   return (
     <Screen testID="result-screen">
@@ -134,7 +188,69 @@ export default function ResultScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal visible={folderSheet} transparent animationType="fade" onRequestClose={() => setFolderSheet(false)}><View testID="save-folder-sheet" className="flex-1 justify-end bg-black/35"><Pressable testID="close-folder-backdrop" className="absolute inset-0" onPress={() => setFolderSheet(false)} /><View className="rounded-t-[32px] px-5 pb-10 pt-5" style={{ backgroundColor: COLORS.chalk }}><View className="flex-row items-center"><View className="flex-1"><Text className="text-2xl" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>Save version 1</Text><Text className="mt-1 text-sm" style={{ color: COLORS.olive }}>Choose where this project belongs.</Text></View><Pressable testID="close-folder-sheet-button" onPress={() => setFolderSheet(false)} className="h-11 w-11 items-center justify-center rounded-full border" style={{ borderColor: COLORS.line }}><X size={18} color={COLORS.espresso} /></Pressable></View><ScrollView className="mt-5" style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>{[{ id: null, name: 'Unfiled' }, ...folders].map((folder) => <Pressable key={folder.id ?? 'unfiled'} testID={`save-to-folder-${folder.id ?? 'unfiled'}`} disabled={saving} onPress={() => void saveVersion(folder.id)} className="min-h-14 flex-row items-center border-b px-2" style={{ borderBottomColor: COLORS.line }}><Folder size={18} color={COLORS.oliveDark} /><Text className="ml-3 flex-1 text-base" style={{ color: COLORS.espresso }}>{folder.name}</Text></Pressable>)}</ScrollView></View></View></Modal>
+      <Modal visible={saveSheet} transparent animationType="fade" onRequestClose={closeSaveSheet}>
+        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View testID="save-project-sheet" className="flex-1 justify-end bg-black/35">
+            <Pressable testID="close-save-backdrop" className="absolute inset-0" onPress={closeSaveSheet} />
+            <View className="max-h-[82%] rounded-t-[32px] px-5 pb-10 pt-5" style={{ backgroundColor: COLORS.chalk }}>
+              <View className="flex-row items-center">
+                <View className="flex-1">
+                  <Text className="text-2xl" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>{creatingProject ? 'New project' : 'Save design'}</Text>
+                  <Text className="mt-1 text-sm" style={{ color: COLORS.olive }}>{creatingProject ? 'Name it and choose a folder.' : 'Add it to a project, or start a new one.'}</Text>
+                </View>
+                <Pressable testID="close-save-sheet-button" disabled={saving} onPress={closeSaveSheet} className="h-11 w-11 items-center justify-center rounded-full border" style={{ borderColor: COLORS.line, opacity: saving ? 0.45 : 1 }}><X size={18} color={COLORS.espresso} /></Pressable>
+              </View>
+
+              {creatingProject ? (
+                <View testID="new-project-form" className="mt-6">
+                  <Text className="text-[11px] font-semibold uppercase tracking-[2px]" style={{ color: COLORS.oliveDark }}>Project name</Text>
+                  <TextInput
+                    testID="new-project-title-input"
+                    value={newProjectTitle}
+                    onChangeText={setNewProjectTitle}
+                    autoFocus
+                    selectTextOnFocus
+                    maxLength={80}
+                    returnKeyType="done"
+                    onSubmitEditing={() => { if (newProjectTitle.trim() && !saving) void createNewProject(); }}
+                    placeholder="My room project"
+                    placeholderTextColor="#9B9185"
+                    className="mt-2 min-h-14 rounded-2xl border px-4 text-base"
+                    style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper, color: COLORS.espresso }}
+                  />
+                  <Text className="mt-5 text-[11px] font-semibold uppercase tracking-[2px]" style={{ color: COLORS.oliveDark }}>Folder</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, paddingTop: 10, paddingRight: 20 }}>
+                    {[{ id: null, name: 'Unfiled' }, ...folders].map((folder) => {
+                      const selected = newProjectFolderId === folder.id;
+                      return <Pressable key={folder.id ?? 'unfiled'} testID={`new-project-folder-${folder.id ?? 'unfiled'}`} onPress={() => setNewProjectFolderId(folder.id)} className="min-h-11 flex-row items-center rounded-full border px-4" style={{ borderColor: selected ? COLORS.coral : COLORS.line, backgroundColor: selected ? '#FBE4DD' : COLORS.paper }}><Folder size={15} color={selected ? COLORS.coral : COLORS.oliveDark} /><Text className="ml-2 text-sm font-semibold" style={{ color: selected ? COLORS.coral : COLORS.espresso }}>{folder.name}</Text></Pressable>;
+                    })}
+                  </ScrollView>
+                  <View className="mt-6"><PrimaryButton label="Create project & save" onPress={() => void createNewProject()} disabled={!newProjectTitle.trim()} loading={saving} testID="create-project-and-save-button" /></View>
+                  <Pressable testID="back-to-project-list-button" disabled={saving} onPress={() => setCreatingProject(false)} className="mt-2 min-h-11 items-center justify-center"><Text className="text-sm font-semibold" style={{ color: COLORS.oliveDark }}>Back to projects</Text></Pressable>
+                </View>
+              ) : (
+                <ScrollView testID="save-project-list" className="mt-5" style={{ maxHeight: 500 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                  <Pressable testID="create-new-project-button" disabled={saving} onPress={() => setCreatingProject(true)} className="mb-4 min-h-[74px] flex-row items-center rounded-[22px] border px-4" style={{ borderColor: COLORS.coral, backgroundColor: '#FBE4DD' }}>
+                    <View className="h-11 w-11 items-center justify-center rounded-full" style={{ backgroundColor: COLORS.coral }}><Plus size={20} color={COLORS.white} /></View>
+                    <View className="ml-3 flex-1"><Text className="text-base font-semibold" style={{ color: COLORS.espresso }}>Create new project</Text><Text className="mt-0.5 text-xs" style={{ color: COLORS.oliveDark }}>Start with this design as version 1</Text></View>
+                  </Pressable>
+
+                  {designs.length ? <Text className="mb-2 text-[11px] font-semibold uppercase tracking-[2px]" style={{ color: COLORS.oliveDark }}>Your projects</Text> : null}
+                  {designs.map((project) => (
+                    <Pressable key={project.id} testID={`save-to-project-${project.id}`} disabled={saving} onPress={() => void saveToExistingProject(project.id, project.title)} className="min-h-[76px] flex-row items-center border-b py-3" style={{ borderBottomColor: COLORS.line, opacity: saving ? 0.45 : 1 }}>
+                      <Image source={{ uri: project.latestVersion.imageUrl }} className="h-14 w-14 rounded-2xl" />
+                      <View className="ml-3 flex-1"><Text numberOfLines={1} className="text-base font-semibold" style={{ color: COLORS.espresso }}>{project.title}</Text><View className="mt-1 flex-row items-center"><Folder size={13} color={COLORS.olive} /><Text numberOfLines={1} className="ml-1 text-xs" style={{ color: COLORS.olive }}>{project.folder?.name ?? 'Unfiled'} · {project.versionCount} {project.versionCount === 1 ? 'version' : 'versions'}</Text></View></View>
+                      <View className="h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: COLORS.paper }}><Layers3 size={17} color={COLORS.oliveDark} /></View>
+                    </Pressable>
+                  ))}
+                  {!designs.length ? <View testID="empty-project-list" className="items-center px-6 py-8"><Folder size={28} color={COLORS.sand} /><Text className="mt-3 text-center text-sm" style={{ color: COLORS.olive }}>No projects yet. Create one to save your first design.</Text></View> : null}
+                </ScrollView>
+              )}
+              {saveError ? <Text testID="save-project-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>{saveError}</Text> : null}
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </Screen>
   );
 }
