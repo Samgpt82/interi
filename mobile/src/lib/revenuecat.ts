@@ -89,22 +89,32 @@ export async function manageSubscription(appUserID: string) {
   if (!revenueCatSupported) throw new Error('Subscription management is only available in the mobile app.');
 
   await configureRevenueCat(appUserID);
+  const customerInfo = await Purchases.getCustomerInfo();
+  const activeEntitlement = Object.values(customerInfo.entitlements.active)[0];
+  const activeProductIdentifier = activeEntitlement?.productIdentifier ?? customerInfo.activeSubscriptions[0];
+  const subscriptionStore = activeEntitlement?.store ?? (
+    activeProductIdentifier
+      ? customerInfo.subscriptionsByProductIdentifier[activeProductIdentifier]?.store
+      : undefined
+  );
+
+  if (subscriptionStore === 'TEST_STORE') {
+    return { customerInfo, destination: 'test-store' as const };
+  }
+
+  if (customerInfo.managementURL) {
+    await Linking.openURL(customerInfo.managementURL);
+    return { customerInfo, destination: 'store' as const };
+  }
 
   try {
     await RevenueCatUI.presentCustomerCenter();
+    return { customerInfo: await Purchases.getCustomerInfo(), destination: 'customer-center' as const };
   } catch (customerCenterError) {
-    const customerInfo = await Purchases.getCustomerInfo();
-
-    if (customerInfo.managementURL) {
-      await Linking.openURL(customerInfo.managementURL);
-    } else if (Platform.OS === 'ios') {
-      await Purchases.showManageSubscriptions();
-    } else {
-      throw customerCenterError;
-    }
+    if (Platform.OS !== 'ios') throw customerCenterError;
+    await Purchases.showManageSubscriptions();
+    return { customerInfo: await Purchases.getCustomerInfo(), destination: 'store' as const };
   }
-
-  return Purchases.getCustomerInfo();
 }
 
 export function useRevenueCatCustomerInfo(appUserID: string | undefined) {
@@ -165,8 +175,8 @@ export function useSubscriptionManagement(appUserID: string | undefined) {
       if (!appUserID) throw new Error('Sign in before managing your subscription.');
       return manageSubscription(appUserID);
     },
-    onSuccess: (customerInfo) => {
-      queryClient.setQueryData(revenueCatCustomerInfoKey(appUserID!), customerInfo);
+    onSuccess: (result) => {
+      queryClient.setQueryData(revenueCatCustomerInfoKey(appUserID!), result.customerInfo);
     },
   });
 }

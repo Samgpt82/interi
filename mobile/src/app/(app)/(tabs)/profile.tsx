@@ -32,6 +32,10 @@ export default function ProfileScreen() {
   const freeAllowanceActive = (freeDesignsRemaining ?? 0) > 0;
   const membershipPlan = getMembershipPlan(customerInfo.data);
   const fullAccess = membershipPlan !== 'Free';
+  const activeEntitlement = customerInfo.data
+    ? Object.values(customerInfo.data.entitlements.active)[0]
+    : undefined;
+  const testSubscription = activeEntitlement?.store === 'TEST_STORE';
   const subscriptionsSupported = Platform.OS === 'ios' || Platform.OS === 'android';
 
   const signOut = useMutation({
@@ -117,7 +121,11 @@ export default function ProfileScreen() {
                   className="min-h-14 flex-row items-center border-t px-5 active:opacity-60"
                   style={{ borderTopColor: '#D7DDC9', opacity: subscriptionManagement.isPending ? 0.6 : 1 }}>
                   <Text className="flex-1 text-sm font-semibold" style={{ color: COLORS.espresso }}>
-                    {subscriptionManagement.isPending ? 'Opening subscription…' : 'Manage subscription'}
+                    {subscriptionManagement.isPending
+                      ? 'Opening subscription…'
+                      : testSubscription
+                        ? 'View test subscription details'
+                        : 'Manage subscription'}
                   </Text>
                   <ArrowUpRight size={18} color={COLORS.oliveDark} />
                 </Pressable>
@@ -136,6 +144,11 @@ export default function ProfileScreen() {
                 </Pressable>
               )}
             </View>
+            {subscriptionManagement.data?.destination === 'test-store' ? (
+              <Text testID="profile-test-subscription-notice" className="mt-3 text-xs leading-5" style={{ color: COLORS.oliveDark }}>
+                Your test subscription is active. Test Store purchases do not have an Apple billing page; production subscriptions open in App Store subscriptions.
+              </Text>
+            ) : null}
             {customerInfo.isError ? (
               <Text testID="profile-membership-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>
                 {customerInfo.error instanceof Error ? customerInfo.error.message : 'Unable to check your membership.'}
