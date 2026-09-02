@@ -31,7 +31,7 @@ export default function ProfileScreen() {
   const freeDesignsRemaining = designAccess.data?.freeDesignsRemaining;
   const freeAllowanceActive = (freeDesignsRemaining ?? 0) > 0;
   const membershipPlan = getMembershipPlan(customerInfo.data);
-  const paidMembership = membershipPlan !== 'Free';
+  const fullAccess = membershipPlan !== 'Free';
   const subscriptionsSupported = Platform.OS === 'ios' || Platform.OS === 'android';
 
   const signOut = useMutation({
@@ -79,20 +79,20 @@ export default function ProfileScreen() {
             <View
               testID="profile-membership-card"
               className="mt-3 overflow-hidden rounded-[24px] border"
-              style={{ borderColor: paidMembership || freeAllowanceActive ? '#B9C5A1' : '#E8A995', backgroundColor: paidMembership || freeAllowanceActive ? '#EEF1E7' : '#FBE9E2' }}>
+              style={{ borderColor: fullAccess || freeAllowanceActive ? '#B9C5A1' : '#E8A995', backgroundColor: fullAccess || freeAllowanceActive ? '#EEF1E7' : '#FBE9E2' }}>
               <View className="flex-row items-center px-5 py-5">
-                <View className="h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: paidMembership ? COLORS.espresso : freeAllowanceActive ? COLORS.oliveDark : COLORS.coral }}>
-                  {paidMembership || !freeAllowanceActive ? <Crown size={21} color={COLORS.white} /> : <ShieldCheck size={21} color={COLORS.white} />}
+                <View className="h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: fullAccess ? COLORS.espresso : freeAllowanceActive ? COLORS.oliveDark : COLORS.coral }}>
+                  {fullAccess || !freeAllowanceActive ? <Crown size={21} color={COLORS.white} /> : <ShieldCheck size={21} color={COLORS.white} />}
                 </View>
                 <View className="ml-4 flex-1">
-                  <Text className="text-[9px] font-semibold uppercase tracking-[1.8px]" style={{ color: paidMembership ? COLORS.coral : COLORS.olive }}>Current plan</Text>
+                  <Text className="text-[9px] font-semibold uppercase tracking-[1.8px]" style={{ color: fullAccess ? COLORS.coral : COLORS.olive }}>Current plan</Text>
                   <Text testID="profile-membership-status" className="mt-0.5 text-xl" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>
                     {membershipPlan}
                   </Text>
                   <Text testID="profile-design-access-status" className="mt-1 text-xs" style={{ color: COLORS.olive }}>
                     {customerInfo.isPending
                       ? 'Checking your membership…'
-                      : paidMembership
+                      : fullAccess
                         ? `Full access · ${membershipPlan.toLowerCase()} plan`
                         : designAccess.isPending
                           ? 'Checking your included designs…'
@@ -101,14 +101,14 @@ export default function ProfileScreen() {
                             : 'Your three free designs are complete.'}
                   </Text>
                 </View>
-                {paidMembership ? (
+                {fullAccess ? (
                   <View className="rounded-full px-3 py-2" style={{ backgroundColor: COLORS.espresso }}>
                     <Text className="text-[9px] font-semibold uppercase tracking-[1.4px]" style={{ color: COLORS.white }}>Active</Text>
                   </View>
                 ) : null}
               </View>
 
-              {paidMembership ? (
+              {fullAccess ? (
                 <Pressable
                   testID="manage-subscription-button"
                   accessibilityRole="button"
