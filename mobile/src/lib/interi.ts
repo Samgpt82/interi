@@ -42,6 +42,7 @@ export type RoomType = (typeof ROOM_TYPES)[number]['id'];
 export type ShoppingCountry = (typeof SHOPPING_COUNTRIES)[number];
 
 export type DesignAccessMode = 'free' | 'subscription';
+export const SUBSCRIPTION_REQUIRED_ERROR_CODE = 'SUBSCRIPTION_REQUIRED';
 
 export interface DesignAccessResponse {
   freeDesignLimit: number;

@@ -8,11 +8,11 @@ import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Te
 import { BeforeAfterSlider } from '@/components/BeforeAfterSlider';
 import { DesignItems } from '@/components/DesignItems';
 import { IconButton, PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
-import { api } from '@/lib/api/api';
+import { api, isApiError } from '@/lib/api/api';
 import { useSession } from '@/lib/auth/use-session';
-import { authorizeDesignGeneration, DESIGN_ACCESS_QUERY_KEY } from '@/lib/design-access';
+import { authorizeDesignGeneration, DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
 import { prepareImageForUpload, saveImageToLibrary, shareImage } from '@/lib/image-utils';
-import { COLORS, ROOM_TYPES, STYLES, type DesignInventoryRequest, type DesignItem, type RedesignRequest, type RedesignResponse } from '@/lib/interi';
+import { COLORS, ROOM_TYPES, STYLES, SUBSCRIPTION_REQUIRED_ERROR_CODE, type DesignInventoryRequest, type DesignItem, type RedesignRequest, type RedesignResponse } from '@/lib/interi';
 import { useGenerationStore } from '@/lib/state/generation-store';
 import { useSavedDesigns } from '@/lib/state/saved-designs-context';
 
@@ -63,6 +63,26 @@ export default function ResultScreen() {
       setRefinement('');
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
+    onError: async (caught, variables) => {
+      if (variables.accessMode !== 'free') return;
+
+      const subscriptionRequired = isApiError(caught) && caught.code === SUBSCRIPTION_REQUIRED_ERROR_CODE;
+      if (subscriptionRequired) {
+        await queryClient.invalidateQueries({ queryKey: DESIGN_ACCESS_QUERY_KEY });
+        router.push({ pathname: '/subscription', params: { returnTo: 'result' } });
+        return;
+      }
+
+      try {
+        const latestAccess = await fetchDesignAccess();
+        queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, latestAccess);
+        if (latestAccess.freeDesignsRemaining === 0) {
+          router.push({ pathname: '/subscription', params: { returnTo: 'result' } });
+        }
+      } catch {
+        // Keep the original refinement error visible when access cannot be rechecked.
+      }
+    },
   });
 
   const { mutate: loadItems, isPending: itemsPending } = useMutation({
@@ -78,7 +98,10 @@ export default function ResultScreen() {
     },
     onSuccess: ({ accessGranted, accessMode, designAccess, instruction, baseImage }) => {
       queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, designAccess);
-      if (!accessGranted) return;
+      if (!accessGranted) {
+        router.push({ pathname: '/subscription', params: { returnTo: 'result' } });
+        return;
+      }
       mutation.mutate({
         sourceImageDataUrl: baseImage,
         style,

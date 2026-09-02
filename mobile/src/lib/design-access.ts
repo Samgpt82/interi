@@ -22,7 +22,7 @@ export async function authorizeDesignGeneration(appUserID: string): Promise<{
   }
 
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
-    return { accessGranted: true, accessMode: 'subscription', designAccess };
+    return { accessGranted: false, accessMode: 'subscription', designAccess };
   }
 
   subscriptionModuleLoaded = true;

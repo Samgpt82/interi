@@ -7,6 +7,29 @@ interface ApiResponse<T> {
   data: T;
 }
 
+interface ApiErrorResponse {
+  error?: {
+    message?: string;
+    code?: string;
+  };
+}
+
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
 const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL!;
 
 const request = async <T>(
@@ -31,18 +54,20 @@ const request = async <T>(
   // 2. JSON responses: surface API errors, then unwrap { data }
   const contentType = response.headers.get("content-type");
   if (contentType?.includes("application/json")) {
-    const json = (await response.json()) as ApiResponse<T> & {
-      error?: { message?: string; code?: string };
-    };
+    const json = (await response.json()) as ApiResponse<T> & ApiErrorResponse;
     if (!response.ok) {
-      throw new Error(json.error?.message ?? `Request failed (${response.status})`);
+      throw new ApiError(
+        json.error?.message ?? `Request failed (${response.status})`,
+        response.status,
+        json.error?.code
+      );
     }
     return json.data;
   }
 
   // 3. Non-JSON errors still need to reject mutations
   if (!response.ok) {
-    throw new Error(`Request failed (${response.status})`);
+    throw new ApiError(`Request failed (${response.status})`, response.status);
   }
   return undefined as T;
 };

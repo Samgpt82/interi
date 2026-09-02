@@ -7,6 +7,7 @@ import {
   designInventoryRequestSchema,
   designInventorySchema,
   redesignRoomRequestSchema,
+  SUBSCRIPTION_REQUIRED_ERROR_CODE,
   type DesignAccessResponse,
   type DesignInventoryRequest,
   type DesignItem,
@@ -407,7 +408,7 @@ redesignRouter.post("/", async (c) => {
           {
             error: {
               message: "Your three free designs have been used. Choose a plan to continue.",
-              code: "SUBSCRIPTION_REQUIRED",
+              code: SUBSCRIPTION_REQUIRED_ERROR_CODE,
             },
           },
           402

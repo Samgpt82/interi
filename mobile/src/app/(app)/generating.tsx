@@ -7,9 +7,9 @@ import { Text, View } from 'react-native';
 import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
-import { api } from '@/lib/api/api';
-import { DESIGN_ACCESS_QUERY_KEY } from '@/lib/design-access';
-import { COLORS, type RedesignRequest, type RedesignResponse } from '@/lib/interi';
+import { api, isApiError } from '@/lib/api/api';
+import { DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
+import { COLORS, SUBSCRIPTION_REQUIRED_ERROR_CODE, type RedesignRequest, type RedesignResponse } from '@/lib/interi';
 import { useGenerationStore } from '@/lib/state/generation-store';
 import { usePreferencesStore } from '@/lib/state/preferences-store';
 
@@ -32,6 +32,26 @@ export default function GeneratingScreen() {
       if (data.designAccess) queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, data.designAccess);
       setResult(data);
       router.replace('/result');
+    },
+    onError: async (caught) => {
+      if (accessMode !== 'free') return;
+
+      const subscriptionRequired = isApiError(caught) && caught.code === SUBSCRIPTION_REQUIRED_ERROR_CODE;
+      if (subscriptionRequired) {
+        await queryClient.invalidateQueries({ queryKey: DESIGN_ACCESS_QUERY_KEY });
+        router.replace({ pathname: '/subscription', params: { returnTo: 'generating' } });
+        return;
+      }
+
+      try {
+        const latestAccess = await fetchDesignAccess();
+        queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, latestAccess);
+        if (latestAccess.freeDesignsRemaining === 0) {
+          router.replace({ pathname: '/subscription', params: { returnTo: 'generating' } });
+        }
+      } catch {
+        // Keep the original generation error visible when access cannot be rechecked.
+      }
     },
   });
 

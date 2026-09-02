@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { ArrowLeft, Check } from 'lucide-react-native';
@@ -7,11 +7,12 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput,
 
 import { PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
 import { useSession } from '@/lib/auth/use-session';
-import { authorizeDesignGeneration, DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
+import { DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
 import { COLORS, ROOM_TYPES, STYLES, type DesignStyle, type RoomType } from '@/lib/interi';
 import { useGenerationStore } from '@/lib/state/generation-store';
 
 export default function StyleScreen() {
+  const queryClient = useQueryClient();
   const { data: session } = useSession();
   const designAccess = useQuery({
     queryKey: DESIGN_ACCESS_QUERY_KEY,
@@ -30,11 +31,15 @@ export default function StyleScreen() {
   const access = useMutation({
     mutationFn: async () => {
       if (!session?.user.id) throw new Error('Sign in before composing a room.');
-      return authorizeDesignGeneration(session.user.id);
+      return fetchDesignAccess();
     },
     onSuccess: (result) => {
-      if (!result.accessGranted) return;
-      setAccessMode(result.accessMode);
+      queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, result);
+      if (result.freeDesignsRemaining === 0) {
+        router.push({ pathname: '/subscription', params: { returnTo: 'generating' } });
+        return;
+      }
+      setAccessMode('free');
       router.push('/generating');
     },
   });

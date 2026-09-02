@@ -28,6 +28,7 @@ export const roomTypeSchema = z.enum([
 export const shoppingCountrySchema = z.enum(["SE", "GB"]);
 
 export const FREE_DESIGN_LIMIT = 3;
+export const SUBSCRIPTION_REQUIRED_ERROR_CODE = "SUBSCRIPTION_REQUIRED";
 
 export const designAccessModeSchema = z.enum(["free", "subscription"]);
 
