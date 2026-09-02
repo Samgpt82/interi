@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Platform } from 'react-native';
+import { useEffect } from 'react';
+import { Linking, Platform } from 'react-native';
 import Purchases, { type CustomerInfo } from 'react-native-purchases';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 
@@ -11,6 +12,8 @@ const API_KEY = Platform.select({
 
 export const revenueCatSupported = Platform.OS === 'ios' || Platform.OS === 'android';
 export const revenueCatCustomerInfoKey = (appUserID: string) => ['revenuecat-customer-info', appUserID] as const;
+
+export type MembershipPlan = 'Free' | 'Monthly' | 'Yearly';
 
 let configurationPromise: Promise<void> | null = null;
 
@@ -34,6 +37,19 @@ async function configureRevenueCat(appUserID: string) {
 
 export function hasFullAccess(customerInfo: CustomerInfo | null | undefined) {
   return Boolean(customerInfo && Object.keys(customerInfo.entitlements.active).length > 0);
+}
+
+export function getMembershipPlan(customerInfo: CustomerInfo | null | undefined): MembershipPlan {
+  const activeEntitlement = customerInfo
+    ? Object.values(customerInfo.entitlements.active)[0]
+    : undefined;
+  const productIdentifier = activeEntitlement?.productIdentifier ?? customerInfo?.activeSubscriptions[0];
+
+  if (!productIdentifier) return 'Free';
+
+  const normalizedIdentifier = productIdentifier.toLowerCase();
+  if (/year|annual|12[_\-. ]?month/.test(normalizedIdentifier)) return 'Yearly';
+  return 'Monthly';
 }
 
 export async function initializeRevenueCatUser(appUserID: string) {
@@ -69,9 +85,57 @@ export async function requestFullAccess(appUserID: string) {
   return { accessGranted, customerInfo: updatedCustomerInfo };
 }
 
+export async function manageSubscription(appUserID: string) {
+  if (!revenueCatSupported) throw new Error('Subscription management is only available in the mobile app.');
+
+  await configureRevenueCat(appUserID);
+
+  try {
+    await RevenueCatUI.presentCustomerCenter();
+  } catch (customerCenterError) {
+    const customerInfo = await Purchases.getCustomerInfo();
+
+    if (customerInfo.managementURL) {
+      await Linking.openURL(customerInfo.managementURL);
+    } else if (Platform.OS === 'ios') {
+      await Purchases.showManageSubscriptions();
+    } else {
+      throw customerCenterError;
+    }
+  }
+
+  return Purchases.getCustomerInfo();
+}
+
 export function useRevenueCatCustomerInfo(appUserID: string | undefined) {
+  const queryClient = useQueryClient();
+  const queryKey = revenueCatCustomerInfoKey(appUserID ?? 'signed-out');
+
+  useEffect(() => {
+    if (!revenueCatSupported || !appUserID) return;
+
+    let listening = false;
+    let cancelled = false;
+    const listener = (customerInfo: CustomerInfo) => {
+      queryClient.setQueryData(revenueCatCustomerInfoKey(appUserID), customerInfo);
+    };
+
+    void configureRevenueCat(appUserID)
+      .then(() => {
+        if (cancelled) return;
+        Purchases.addCustomerInfoUpdateListener(listener);
+        listening = true;
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+      if (listening) Purchases.removeCustomerInfoUpdateListener(listener);
+    };
+  }, [appUserID, queryClient]);
+
   return useQuery({
-    queryKey: revenueCatCustomerInfoKey(appUserID ?? 'signed-out'),
+    queryKey,
     queryFn: () => initializeRevenueCatUser(appUserID!),
     enabled: revenueCatSupported && Boolean(appUserID),
     staleTime: 1000 * 60,
@@ -89,6 +153,20 @@ export function useSubscriptionPaywall(appUserID: string | undefined) {
     },
     onSuccess: (result) => {
       if (result.customerInfo) queryClient.setQueryData(revenueCatCustomerInfoKey(appUserID!), result.customerInfo);
+    },
+  });
+}
+
+export function useSubscriptionManagement(appUserID: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!appUserID) throw new Error('Sign in before managing your subscription.');
+      return manageSubscription(appUserID);
+    },
+    onSuccess: (customerInfo) => {
+      queryClient.setQueryData(revenueCatCustomerInfoKey(appUserID!), customerInfo);
     },
   });
 }

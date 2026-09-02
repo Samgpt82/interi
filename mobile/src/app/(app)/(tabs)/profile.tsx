@@ -7,8 +7,9 @@ import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { Screen, Wordmark } from '@/components/InteriUI';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession, useSession } from '@/lib/auth/use-session';
-import { authorizeDesignGeneration, DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess, resetSubscriptionUserIfLoaded } from '@/lib/design-access';
+import { DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
 import { COLORS } from '@/lib/interi';
+import { getMembershipPlan, resetRevenueCatUser, useRevenueCatCustomerInfo, useSubscriptionManagement, useSubscriptionPaywall } from '@/lib/revenuecat';
 import { useSavedDesigns } from '@/lib/state/saved-designs-context';
 
 export default function ProfileScreen() {
@@ -24,24 +25,22 @@ export default function ProfileScreen() {
     enabled: Boolean(session?.user.id),
     staleTime: 1000 * 15,
   });
-  const subscription = useMutation({
-    mutationFn: async () => {
-      if (!session?.user.id) throw new Error('Sign in before choosing a plan.');
-      return authorizeDesignGeneration(session.user.id);
-    },
-    onSuccess: (result) => queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, result.designAccess),
-  });
+  const customerInfo = useRevenueCatCustomerInfo(session?.user.id);
+  const subscription = useSubscriptionPaywall(session?.user.id);
+  const subscriptionManagement = useSubscriptionManagement(session?.user.id);
   const freeDesignsRemaining = designAccess.data?.freeDesignsRemaining;
   const freeAllowanceActive = (freeDesignsRemaining ?? 0) > 0;
-  const fullAccess = subscription.data?.accessMode === 'subscription' && subscription.data.accessGranted;
+  const membershipPlan = getMembershipPlan(customerInfo.data);
+  const paidMembership = membershipPlan !== 'Free';
   const subscriptionsSupported = Platform.OS === 'ios' || Platform.OS === 'android';
 
   const signOut = useMutation({
     mutationFn: async () => {
       const result = await authClient.signOut();
       if (result.error) throw new Error(result.error.message ?? 'Unable to sign out.');
-      await resetSubscriptionUserIfLoaded().catch((error: unknown) => console.warn('RevenueCat sign out failed', error));
+      await resetRevenueCatUser().catch((error: unknown) => console.warn('RevenueCat sign out failed', error));
       queryClient.removeQueries({ queryKey: DESIGN_ACCESS_QUERY_KEY });
+      queryClient.removeQueries({ queryKey: ['revenuecat-customer-info'] });
       await invalidateSession();
     },
   });
@@ -77,39 +76,71 @@ export default function ProfileScreen() {
         {subscriptionsSupported ? (
           <>
             <Text className="mt-9 text-[10px] font-semibold uppercase tracking-[2.2px]" style={{ color: COLORS.olive }}>Membership</Text>
-            <Pressable
-              testID="profile-subscription-button"
-              accessibilityRole="button"
-              accessibilityState={{ disabled: freeDesignsRemaining !== 0 || fullAccess || subscription.isPending }}
-              disabled={freeDesignsRemaining !== 0 || fullAccess || subscription.isPending}
-              onPress={() => subscription.mutate()}
-              className="mt-3 min-h-[84px] flex-row items-center rounded-[24px] border px-5 active:opacity-65"
-              style={{ borderColor: freeAllowanceActive || fullAccess ? '#B9C5A1' : '#E8A995', backgroundColor: freeAllowanceActive || fullAccess ? '#EEF1E7' : '#FBE9E2', opacity: designAccess.isPending ? 0.65 : 1 }}>
-              <View className="h-11 w-11 items-center justify-center rounded-full" style={{ backgroundColor: freeAllowanceActive || fullAccess ? COLORS.oliveDark : COLORS.coral }}>
-                {freeAllowanceActive || fullAccess ? <ShieldCheck size={20} color={COLORS.white} /> : <Crown size={20} color={COLORS.white} />}
+            <View
+              testID="profile-membership-card"
+              className="mt-3 overflow-hidden rounded-[24px] border"
+              style={{ borderColor: paidMembership || freeAllowanceActive ? '#B9C5A1' : '#E8A995', backgroundColor: paidMembership || freeAllowanceActive ? '#EEF1E7' : '#FBE9E2' }}>
+              <View className="flex-row items-center px-5 py-5">
+                <View className="h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: paidMembership ? COLORS.espresso : freeAllowanceActive ? COLORS.oliveDark : COLORS.coral }}>
+                  {paidMembership || !freeAllowanceActive ? <Crown size={21} color={COLORS.white} /> : <ShieldCheck size={21} color={COLORS.white} />}
+                </View>
+                <View className="ml-4 flex-1">
+                  <Text className="text-[9px] font-semibold uppercase tracking-[1.8px]" style={{ color: paidMembership ? COLORS.coral : COLORS.olive }}>Current plan</Text>
+                  <Text testID="profile-membership-status" className="mt-0.5 text-xl" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>
+                    {membershipPlan}
+                  </Text>
+                  <Text testID="profile-design-access-status" className="mt-1 text-xs" style={{ color: COLORS.olive }}>
+                    {customerInfo.isPending
+                      ? 'Checking your membership…'
+                      : paidMembership
+                        ? `Full access · ${membershipPlan.toLowerCase()} plan`
+                        : designAccess.isPending
+                          ? 'Checking your included designs…'
+                          : freeAllowanceActive
+                            ? `${freeDesignsRemaining} free ${freeDesignsRemaining === 1 ? 'design' : 'designs'} remaining`
+                            : 'Your three free designs are complete.'}
+                  </Text>
+                </View>
+                {paidMembership ? (
+                  <View className="rounded-full px-3 py-2" style={{ backgroundColor: COLORS.espresso }}>
+                    <Text className="text-[9px] font-semibold uppercase tracking-[1.4px]" style={{ color: COLORS.white }}>Active</Text>
+                  </View>
+                ) : null}
               </View>
-              <View className="ml-4 flex-1">
-                <Text testID="profile-design-access-status" className="text-base font-semibold" style={{ color: COLORS.espresso }}>
-                  {fullAccess
-                    ? 'Full access active'
-                    : designAccess.isPending
-                      ? 'Checking free designs…'
-                      : freeAllowanceActive
-                        ? `${freeDesignsRemaining} free ${freeDesignsRemaining === 1 ? 'design' : 'designs'} remaining`
-                        : subscription.isPending
-                          ? 'Opening plans…'
-                          : 'Unlock full access'}
-                </Text>
-                <Text className="mt-1 text-xs" style={{ color: COLORS.olive }}>
-                  {fullAccess
-                    ? 'Your plan is active on this account.'
-                    : freeAllowanceActive
-                      ? 'Subscriptions stay off until your free designs are complete.'
-                      : 'Open the monthly and yearly plans.'}
-                </Text>
-              </View>
-              {freeDesignsRemaining === 0 && !fullAccess ? <ArrowUpRight size={18} color={COLORS.coral} /> : null}
-            </Pressable>
+
+              {paidMembership ? (
+                <Pressable
+                  testID="manage-subscription-button"
+                  accessibilityRole="button"
+                  disabled={subscriptionManagement.isPending}
+                  onPress={() => { subscriptionManagement.reset(); subscriptionManagement.mutate(); }}
+                  className="min-h-14 flex-row items-center border-t px-5 active:opacity-60"
+                  style={{ borderTopColor: '#D7DDC9', opacity: subscriptionManagement.isPending ? 0.6 : 1 }}>
+                  <Text className="flex-1 text-sm font-semibold" style={{ color: COLORS.espresso }}>
+                    {subscriptionManagement.isPending ? 'Opening subscription…' : 'Manage subscription'}
+                  </Text>
+                  <ArrowUpRight size={18} color={COLORS.oliveDark} />
+                </Pressable>
+              ) : freeDesignsRemaining === 0 ? (
+                <Pressable
+                  testID="profile-subscription-button"
+                  accessibilityRole="button"
+                  disabled={subscription.isPending}
+                  onPress={() => { subscription.reset(); subscription.mutate(); }}
+                  className="min-h-14 flex-row items-center border-t px-5 active:opacity-60"
+                  style={{ borderTopColor: '#EDC4B6', opacity: subscription.isPending ? 0.6 : 1 }}>
+                  <Text className="flex-1 text-sm font-semibold" style={{ color: COLORS.espresso }}>
+                    {subscription.isPending ? 'Opening plans…' : 'View monthly and yearly plans'}
+                  </Text>
+                  <ArrowUpRight size={18} color={COLORS.coral} />
+                </Pressable>
+              ) : null}
+            </View>
+            {customerInfo.isError ? (
+              <Text testID="profile-membership-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>
+                {customerInfo.error instanceof Error ? customerInfo.error.message : 'Unable to check your membership.'}
+              </Text>
+            ) : null}
             {designAccess.isError ? (
               <Text testID="profile-design-access-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>
                 {designAccess.error instanceof Error ? designAccess.error.message : 'Unable to check free designs.'}
@@ -118,6 +149,11 @@ export default function ProfileScreen() {
             {subscription.isError ? (
               <Text testID="profile-subscription-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>
                 {subscription.error instanceof Error ? subscription.error.message : 'Unable to open subscription options.'}
+              </Text>
+            ) : null}
+            {subscriptionManagement.isError ? (
+              <Text testID="profile-subscription-management-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>
+                {subscriptionManagement.error instanceof Error ? subscriptionManagement.error.message : 'Unable to open subscription management.'}
               </Text>
             ) : null}
           </>
