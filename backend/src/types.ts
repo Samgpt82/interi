@@ -55,7 +55,15 @@ export type RoomType = z.infer<typeof roomTypeSchema>;
 export type ShoppingCountry = z.infer<typeof shoppingCountrySchema>;
 export type DesignAccessMode = z.infer<typeof designAccessModeSchema>;
 export type DesignAccessResponse = z.infer<typeof designAccessResponseSchema>;
+export const designInventoryRequestSchema = redesignRoomRequestSchema.pick({
+  sourceImageDataUrl: true,
+  style: true,
+  roomType: true,
+  shoppingCountry: true,
+});
+
 export type RedesignRoomRequest = z.infer<typeof redesignRoomRequestSchema>;
+export type DesignInventoryRequest = z.infer<typeof designInventoryRequestSchema>;
 
 export const designItemColorSchema = z.object({
   name: z.string().min(1).max(40),

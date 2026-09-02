@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { DesignAccessMode, DesignStyle, ProjectDetailResponse, ProjectVersionResponse, RedesignResponse, RoomType } from '@/lib/interi';
+import type { DesignAccessMode, DesignItem, DesignStyle, ProjectDetailResponse, ProjectVersionResponse, RedesignResponse, RoomType } from '@/lib/interi';
 
 interface GenerationState {
   sourceImageDataUrl: string | null;
@@ -24,6 +24,7 @@ interface GenerationState {
   setDirection: (direction: string) => void;
   setAccessMode: (accessMode: DesignAccessMode) => void;
   setResult: (result: RedesignResponse, options?: { dirty?: boolean; refinement?: string | null }) => void;
+  setItems: (imageDataUrl: string, items: DesignItem[]) => void;
   setProjectId: (projectId: string | null) => void;
   setProjectFolderId: (folderId: string | null) => void;
   loadProject: (project: ProjectDetailResponse, versionId?: string) => void;
@@ -63,6 +64,9 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   setDirection: (direction) => set({ direction }),
   setAccessMode: (accessMode) => set({ accessMode }),
   setResult: (result, options) => set({ result, dirty: options?.dirty ?? get().dirty, pendingRefinement: options?.refinement ?? null }),
+  setItems: (imageDataUrl, items) => set((state) => state.result?.imageDataUrl === imageDataUrl
+    ? { result: { ...state.result, items } }
+    : state),
   setProjectId: (projectId) => set({ projectId }),
   setProjectFolderId: (projectFolderId) => set({ projectFolderId }),
   loadProject: (project, versionId) => {

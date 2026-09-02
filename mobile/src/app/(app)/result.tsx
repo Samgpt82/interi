@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { ArrowLeft, Bookmark, Check, Download, Folder, Layers3, Plus, RefreshCw, Share2, ShoppingBag, X } from 'lucide-react-native';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { BeforeAfterSlider } from '@/components/BeforeAfterSlider';
@@ -12,7 +12,7 @@ import { api } from '@/lib/api/api';
 import { useSession } from '@/lib/auth/use-session';
 import { authorizeDesignGeneration, DESIGN_ACCESS_QUERY_KEY } from '@/lib/design-access';
 import { prepareImageForUpload, saveImageToLibrary, shareImage } from '@/lib/image-utils';
-import { COLORS, ROOM_TYPES, STYLES, type RedesignRequest, type RedesignResponse } from '@/lib/interi';
+import { COLORS, ROOM_TYPES, STYLES, type DesignInventoryRequest, type DesignItem, type RedesignRequest, type RedesignResponse } from '@/lib/interi';
 import { useGenerationStore } from '@/lib/state/generation-store';
 import { useSavedDesigns } from '@/lib/state/saved-designs-context';
 
@@ -33,12 +33,14 @@ export default function ResultScreen() {
   const dirty = useGenerationStore((state) => state.dirty);
   const pendingRefinement = useGenerationStore((state) => state.pendingRefinement);
   const setResult = useGenerationStore((state) => state.setResult);
+  const setItems = useGenerationStore((state) => state.setItems);
   const loadProject = useGenerationStore((state) => state.loadProject);
   const selectVersion = useGenerationStore((state) => state.selectVersion);
   const addVersion = useGenerationStore((state) => state.addVersion);
   const reset = useGenerationStore((state) => state.reset);
   const { designs, folders, fetchProjectDetail, createProject, appendProjectVersion, createFolder, saving } = useSavedDesigns();
   const scrollRef = useRef<ScrollView | null>(null);
+  const analyzedImageRef = useRef<string | null>(null);
   const [refinement, setRefinement] = useState<string>('');
   const [notice, setNotice] = useState<string | null>(null);
   const [exporting, setExporting] = useState<boolean>(false);
@@ -63,6 +65,11 @@ export default function ResultScreen() {
     },
   });
 
+  const { mutate: loadItems, isPending: itemsPending } = useMutation({
+    mutationFn: (request: DesignInventoryRequest) => api.post<DesignItem[]>('/api/redesign/items', request),
+    onSuccess: (items, request) => setItems(request.sourceImageDataUrl, items),
+  });
+
   const refinementAccess = useMutation({
     mutationFn: async ({ instruction, baseImage }: { instruction: string; baseImage: string }) => {
       if (!session?.user.id) throw new Error('Sign in before refining a room.');
@@ -82,6 +89,19 @@ export default function ResultScreen() {
       });
     },
   });
+
+  useEffect(() => {
+    if (!result || result.items.length > 0 || !result.imageDataUrl.startsWith('data:image/')) return;
+    if (analyzedImageRef.current === result.imageDataUrl) return;
+
+    analyzedImageRef.current = result.imageDataUrl;
+    loadItems({
+      sourceImageDataUrl: result.imageDataUrl,
+      style,
+      roomType,
+      shoppingCountry: result.shoppingCountry,
+    });
+  }, [loadItems, result, roomType, style]);
 
   const refinementPending = mutation.isPending || refinementAccess.isPending;
   const styleLabel = useMemo(() => STYLES.find((item) => item.id === style)?.label ?? style, [style]);
@@ -232,7 +252,7 @@ export default function ResultScreen() {
 
           <View className="relative mt-5"><BeforeAfterSlider beforeUri={selectedBase?.sourceImageUrl ?? sourceImageDataUrl} afterUri={result.imageDataUrl} />{refinementPending ? <View testID="refinement-loading" className="absolute inset-0 items-center justify-center rounded-[28px] bg-black/45"><RefreshCw size={34} color={COLORS.white} /><Text className="mt-3 text-sm font-semibold" style={{ color: COLORS.white }}>{refinementAccess.isPending ? 'Checking access…' : 'Refining the composition…'}</Text></View> : null}<Pressable testID="view-design-items-button" accessibilityRole="button" onPress={() => scrollRef.current?.scrollTo({ y: Math.max(0, itemsSectionY - 12), animated: true })} className="absolute right-4 top-4 min-h-11 flex-row items-center rounded-full border border-white/50 bg-black/60 px-4"><ShoppingBag size={15} color={COLORS.white} /><Text className="ml-2 text-xs font-semibold" style={{ color: COLORS.white }}>{result.items?.length ? `${result.items.length} items · Shop` : 'View items'}</Text></Pressable></View>
           <Text testID="revised-prompt" numberOfLines={3} className="mt-4 text-sm italic leading-5" style={{ color: COLORS.olive }}>“{result.revisedPrompt}”</Text>
-          <View onLayout={(event) => setItemsSectionY(event.nativeEvent.layout.y)}><DesignItems items={result.items ?? []} loading={refinementPending} shoppingCountry={result.shoppingCountry} onRefine={applyItemRefinement} /></View>
+          <View onLayout={(event) => setItemsSectionY(event.nativeEvent.layout.y)}><DesignItems items={result.items ?? []} loading={refinementPending || itemsPending} shoppingCountry={result.shoppingCountry} onRefine={applyItemRefinement} /></View>
           <View className="mt-6 flex-row gap-3"><View className="flex-1"><IconButton icon={projectId && !dirty ? Check : Bookmark} label={refinementPending ? 'Refining…' : saving ? 'Saving…' : projectId ? (dirty ? 'Save new version' : `Saved v${activeVersionNumber ?? 1}`) : 'Save'} onPress={() => { if (!saving && !refinementPending) handleSave(); }} testID="save-design-button" /></View><View className="flex-1"><IconButton icon={Download} label={exporting ? 'Saving…' : 'Photos'} onPress={() => void exportImage()} testID="export-image-button" /></View><Pressable testID="share-design-button" onPress={() => void shareImage(result.imageDataUrl)} className="h-12 w-12 items-center justify-center rounded-full border" style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper }}><Share2 size={18} color={COLORS.espresso} /></Pressable></View>
           {notice ? <Text testID="result-notice" className="mt-3 text-sm" style={{ color: COLORS.oliveDark }}>{notice}</Text> : null}{mutation.isError ? <Text testID="refinement-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>{mutation.error instanceof Error ? mutation.error.message : 'That refinement did not complete.'}</Text> : null}{refinementAccess.isError ? <Text testID="refinement-subscription-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>{refinementAccess.error instanceof Error ? refinementAccess.error.message : 'Unable to open subscription options.'}</Text> : null}
           <View className="mt-9 border-t pt-7" style={{ borderTopColor: COLORS.line }}><Text className="text-[11px] font-semibold uppercase tracking-[2.5px]" style={{ color: COLORS.espresso }}>Refine {activeVersionNumber ? `version ${activeVersionNumber}` : 'the edit'}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, paddingTop: 13, paddingRight: 20 }}>{REFINEMENTS.map((item) => <Pressable key={item} testID={`refinement-${item.toLowerCase().replaceAll(' ', '-')}`} onPress={() => updateRefinement(item)} className="min-h-11 justify-center rounded-full border px-4" style={{ borderColor: refinement === item ? COLORS.coral : COLORS.line, backgroundColor: COLORS.paper }}><Text className="text-sm" style={{ color: refinement === item ? COLORS.coral : COLORS.espresso }}>{item}</Text></Pressable>)}</ScrollView><TextInput testID="refinement-input" value={refinement} onChangeText={updateRefinement} placeholder="Tell Interi what to adjust…" placeholderTextColor="#9B9185" multiline maxLength={220} className="mt-3 min-h-[92px] rounded-[22px] border p-4 text-base leading-6" style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper, color: COLORS.espresso, textAlignVertical: 'top' }} /><View className="mt-4"><PrimaryButton label="Refine this room" onPress={submitRefinement} disabled={!refinement.trim()} loading={refinementPending} testID="submit-refinement-button" /></View></View>

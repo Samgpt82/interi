@@ -4,9 +4,11 @@ import type { AppEnv } from "../auth";
 import { env } from "../env";
 import { claimFreeDesign, getDesignAccess, releaseFreeDesign } from "../lib/design-access";
 import {
+  designInventoryRequestSchema,
   designInventorySchema,
   redesignRoomRequestSchema,
   type DesignAccessResponse,
+  type DesignInventoryRequest,
   type DesignItem,
   type RedesignRoomRequest,
   type RedesignRoomResult,
@@ -217,9 +219,9 @@ function createImageEditForm(imageFile: File, prompt: string): FormData {
   formData.append("prompt", prompt);
   formData.append("n", "1");
   formData.append("size", "auto");
-  formData.append("quality", "high");
+  formData.append("quality", "low");
   formData.append("output_format", "jpeg");
-  formData.append("output_compression", "85");
+  formData.append("output_compression", "82");
   formData.append("input_fidelity", "high");
   return formData;
 }
@@ -229,6 +231,7 @@ async function requestImageEdit(imageFile: File, prompt: string): Promise<Respon
     method: "POST",
     headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },
     body: createImageEditForm(imageFile, prompt),
+    signal: AbortSignal.timeout(25_000),
   });
 }
 
@@ -242,7 +245,7 @@ function extractInventoryText(result: OpenAIInventoryResponse): string | undefin
 
 async function identifyDesignItems(
   imageDataUrl: string,
-  request: RedesignRoomRequest
+  request: DesignInventoryRequest
 ): Promise<DesignItem[]> {
   const market = shoppingMarkets[request.shoppingCountry];
   const response = await fetch("https://api.openai.com/v1/responses", {
@@ -304,6 +307,55 @@ async function identifyDesignItems(
     return [];
   }
 }
+
+redesignRouter.post("/items", async (c) => {
+  const user = c.get("user");
+  if (!user) {
+    return c.json(
+      { error: { message: "Please sign in to view design items.", code: "UNAUTHORIZED" } },
+      401
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json(
+      { error: { message: "Request body must be valid JSON", code: "INVALID_JSON" } },
+      400
+    );
+  }
+
+  const parsed = designInventoryRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      {
+        error: {
+          message: parsed.error.issues[0]?.message ?? "Invalid design inventory request",
+          code: "INVALID_REQUEST",
+        },
+      },
+      400
+    );
+  }
+
+  try {
+    const items = await identifyDesignItems(parsed.data.sourceImageDataUrl, parsed.data);
+    return c.json({ data: items });
+  } catch (error) {
+    console.error("Unexpected design inventory error", error);
+    return c.json(
+      {
+        error: {
+          message: "Shopping details are temporarily unavailable",
+          code: "INVENTORY_SERVICE_UNAVAILABLE",
+        },
+      },
+      502
+    );
+  }
+});
 
 redesignRouter.post("/", async (c) => {
   const user = c.get("user");
@@ -388,14 +440,8 @@ redesignRouter.post("/", async (c) => {
   const revisedPrompt = createDesignSummary(parsed.data);
 
   try {
-    let response = await requestImageEdit(imageFile, imagePrompt);
-    let result = await readOpenAIResponse(response);
-
-    if (response.status >= 500) {
-      await Bun.sleep(600);
-      response = await requestImageEdit(imageFile, imagePrompt);
-      result = await readOpenAIResponse(response);
-    }
+    const response = await requestImageEdit(imageFile, imagePrompt);
+    const result = await readOpenAIResponse(response);
 
     if (!response.ok) {
       console.error("OpenAI image edit failed", response.status, result.error?.message);
@@ -439,11 +485,10 @@ redesignRouter.post("/", async (c) => {
       );
     }
 
-    const items = await identifyDesignItems(imageDataUrl, parsed.data);
     const data: RedesignRoomResult = {
       imageDataUrl,
       revisedPrompt,
-      items,
+      items: [],
       shoppingCountry: parsed.data.shoppingCountry,
       designAccess,
     };

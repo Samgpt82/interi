@@ -47,10 +47,10 @@ export function DesignItems({ items, loading, shoppingCountry, onRefine }: Desig
       </View>
 
       {items.length === 0 ? (
-        <View testID="design-items-empty" className="items-center px-7 py-9">
+        <View testID={loading ? 'design-items-loading' : 'design-items-empty'} className="items-center px-7 py-9">
           <Sparkles size={24} color={COLORS.coral} />
-          <Text className="mt-3 text-center text-base" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>Shopping details are still being composed.</Text>
-          <Text className="mt-2 text-center text-xs leading-5" style={{ color: COLORS.olive }}>Create or refine the room once more to generate its item list.</Text>
+          <Text className="mt-3 text-center text-base" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>{loading ? 'Composing your shopping details…' : 'Shopping details are unavailable.'}</Text>
+          <Text className="mt-2 text-center text-xs leading-5" style={{ color: COLORS.olive }}>{loading ? 'Your room is ready while we identify its furniture, lighting and decor.' : 'You can still save, share or refine this room.'}</Text>
         </View>
       ) : null}
 

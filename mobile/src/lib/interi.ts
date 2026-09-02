@@ -58,6 +58,11 @@ export interface RedesignRequest {
   accessMode: DesignAccessMode;
 }
 
+export type DesignInventoryRequest = Pick<
+  RedesignRequest,
+  'sourceImageDataUrl' | 'style' | 'roomType' | 'shoppingCountry'
+>;
+
 export interface DesignItemColor { name: string; hex: string }
 export interface DesignItem {
   id: string;

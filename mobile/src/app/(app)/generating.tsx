@@ -26,7 +26,7 @@ export default function GeneratingScreen() {
   const started = useRef<boolean>(false);
   const sweep = useSharedValue(-1);
 
-  const { mutate, isError, isPending } = useMutation({
+  const { mutate, isError, isPending, error } = useMutation({
     mutationFn: (request: RedesignRequest) => api.post<RedesignResponse>('/api/redesign', request),
     onSuccess: (data) => {
       if (data.designAccess) queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, data.designAccess);
@@ -88,7 +88,7 @@ export default function GeneratingScreen() {
           {isError ? (
             <View testID="generation-error" className="mt-8 w-full rounded-[22px] border p-5" style={{ borderColor: '#D9A393', backgroundColor: '#F7E8E1' }}>
               <Text className="text-base font-semibold" style={{ color: COLORS.espresso }}>The composition paused.</Text>
-              <Text className="mt-1 text-sm leading-5" style={{ color: COLORS.olive }}>Check your connection and try once more.</Text>
+              <Text className="mt-1 text-sm leading-5" style={{ color: COLORS.olive }}>{error instanceof Error ? error.message : 'Please try once more.'}</Text>
               <View className="mt-4"><PrimaryButton label="Try again" onPress={retry} loading={isPending} testID="retry-generation-button" /></View>
             </View>
           ) : null}
