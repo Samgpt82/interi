@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Sparkles } from 'lucide-react-native';
@@ -8,15 +8,18 @@ import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withRepeat,
 
 import { PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
 import { api } from '@/lib/api/api';
+import { DESIGN_ACCESS_QUERY_KEY } from '@/lib/design-access';
 import { COLORS, type RedesignRequest, type RedesignResponse } from '@/lib/interi';
 import { useGenerationStore } from '@/lib/state/generation-store';
 import { usePreferencesStore } from '@/lib/state/preferences-store';
 
 export default function GeneratingScreen() {
+  const queryClient = useQueryClient();
   const sourceImageDataUrl = useGenerationStore((state) => state.sourceImageDataUrl);
   const style = useGenerationStore((state) => state.style);
   const roomType = useGenerationStore((state) => state.roomType);
   const direction = useGenerationStore((state) => state.direction);
+  const accessMode = useGenerationStore((state) => state.accessMode);
   const setResult = useGenerationStore((state) => state.setResult);
   const shoppingCountry = usePreferencesStore((state) => state.shoppingCountry);
   const preferencesHydrated = usePreferencesStore((state) => state.hydrated);
@@ -26,6 +29,7 @@ export default function GeneratingScreen() {
   const { mutate, isError, isPending } = useMutation({
     mutationFn: (request: RedesignRequest) => api.post<RedesignResponse>('/api/redesign', request),
     onSuccess: (data) => {
+      if (data.designAccess) queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, data.designAccess);
       setResult(data);
       router.replace('/result');
     },
@@ -35,15 +39,15 @@ export default function GeneratingScreen() {
     sweep.value = withRepeat(withTiming(1, { duration: 1900, easing: Easing.inOut(Easing.quad) }), -1, true);
     if (!started.current && sourceImageDataUrl && preferencesHydrated) {
       started.current = true;
-      mutate({ sourceImageDataUrl, style, roomType, shoppingCountry, refinement: direction.trim() || undefined });
+      mutate({ sourceImageDataUrl, style, roomType, shoppingCountry, refinement: direction.trim() || undefined, accessMode });
     }
-  }, [direction, mutate, preferencesHydrated, roomType, shoppingCountry, sourceImageDataUrl, style, sweep]);
+  }, [accessMode, direction, mutate, preferencesHydrated, roomType, shoppingCountry, sourceImageDataUrl, style, sweep]);
 
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ translateX: sweep.value * 230 }] }));
 
   const retry = () => {
     if (!sourceImageDataUrl) return;
-    mutate({ sourceImageDataUrl, style, roomType, shoppingCountry, refinement: direction.trim() || undefined });
+    mutate({ sourceImageDataUrl, style, roomType, shoppingCountry, refinement: direction.trim() || undefined, accessMode });
   };
 
   if (!sourceImageDataUrl) {

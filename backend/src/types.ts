@@ -27,6 +27,16 @@ export const roomTypeSchema = z.enum([
 
 export const shoppingCountrySchema = z.enum(["SE", "GB"]);
 
+export const FREE_DESIGN_LIMIT = 3;
+
+export const designAccessModeSchema = z.enum(["free", "subscription"]);
+
+export const designAccessResponseSchema = z.object({
+  freeDesignLimit: z.number().int().positive(),
+  freeDesignsUsed: z.number().int().nonnegative(),
+  freeDesignsRemaining: z.number().int().nonnegative(),
+});
+
 export const redesignRoomRequestSchema = z.object({
   sourceImageDataUrl: z
     .string()
@@ -37,11 +47,14 @@ export const redesignRoomRequestSchema = z.object({
   roomType: roomTypeSchema,
   shoppingCountry: shoppingCountrySchema.default("GB"),
   refinement: z.string().trim().max(500).optional(),
+  accessMode: designAccessModeSchema.default("free"),
 });
 
 export type RoomStyle = z.infer<typeof roomStyleSchema>;
 export type RoomType = z.infer<typeof roomTypeSchema>;
 export type ShoppingCountry = z.infer<typeof shoppingCountrySchema>;
+export type DesignAccessMode = z.infer<typeof designAccessModeSchema>;
+export type DesignAccessResponse = z.infer<typeof designAccessResponseSchema>;
 export type RedesignRoomRequest = z.infer<typeof redesignRoomRequestSchema>;
 
 export const designItemColorSchema = z.object({
@@ -74,6 +87,7 @@ export interface RedesignRoomResult {
   revisedPrompt: string;
   items: DesignItem[];
   shoppingCountry: ShoppingCountry;
+  designAccess: DesignAccessResponse;
 }
 
 export const projectImageDataSchema = z

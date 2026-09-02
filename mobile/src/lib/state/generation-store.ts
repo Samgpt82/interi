@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { DesignStyle, ProjectDetailResponse, ProjectVersionResponse, RedesignResponse, RoomType } from '@/lib/interi';
+import type { DesignAccessMode, DesignStyle, ProjectDetailResponse, ProjectVersionResponse, RedesignResponse, RoomType } from '@/lib/interi';
 
 interface GenerationState {
   sourceImageDataUrl: string | null;
@@ -8,6 +8,7 @@ interface GenerationState {
   style: DesignStyle;
   roomType: RoomType;
   direction: string;
+  accessMode: DesignAccessMode;
   result: RedesignResponse | null;
   projectId: string | null;
   projectTitle: string | null;
@@ -21,6 +22,7 @@ interface GenerationState {
   setStyle: (style: DesignStyle) => void;
   setRoomType: (roomType: RoomType) => void;
   setDirection: (direction: string) => void;
+  setAccessMode: (accessMode: DesignAccessMode) => void;
   setResult: (result: RedesignResponse, options?: { dirty?: boolean; refinement?: string | null }) => void;
   setProjectId: (projectId: string | null) => void;
   setProjectFolderId: (folderId: string | null) => void;
@@ -37,6 +39,7 @@ const initialState = {
   style: 'warm-minimal' as DesignStyle,
   roomType: 'living-room' as RoomType,
   direction: '',
+  accessMode: 'free' as DesignAccessMode,
   result: null,
   projectId: null,
   projectTitle: null,
@@ -58,6 +61,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   setStyle: (style) => set({ style }),
   setRoomType: (roomType) => set({ roomType }),
   setDirection: (direction) => set({ direction }),
+  setAccessMode: (accessMode) => set({ accessMode }),
   setResult: (result, options) => set({ result, dirty: options?.dirty ?? get().dirty, pendingRefinement: options?.refinement ?? null }),
   setProjectId: (projectId) => set({ projectId }),
   setProjectFolderId: (projectFolderId) => set({ projectFolderId }),

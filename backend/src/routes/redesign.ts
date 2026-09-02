@@ -1,8 +1,12 @@
 import { Hono } from "hono";
+
+import type { AppEnv } from "../auth";
 import { env } from "../env";
+import { claimFreeDesign, getDesignAccess, releaseFreeDesign } from "../lib/design-access";
 import {
   designInventorySchema,
   redesignRoomRequestSchema,
+  type DesignAccessResponse,
   type DesignItem,
   type RedesignRoomRequest,
   type RedesignRoomResult,
@@ -11,7 +15,7 @@ import {
   type ShoppingCountry,
 } from "../types";
 
-const redesignRouter = new Hono();
+const redesignRouter = new Hono<AppEnv>();
 
 const styleDescriptions: Record<RoomStyle, string> = {
   "warm-minimal":
@@ -302,6 +306,14 @@ async function identifyDesignItems(
 }
 
 redesignRouter.post("/", async (c) => {
+  const user = c.get("user");
+  if (!user) {
+    return c.json(
+      { error: { message: "Please sign in to create room designs.", code: "UNAUTHORIZED" } },
+      401
+    );
+  }
+
   let body: unknown;
   try {
     body = await c.req.json();
@@ -333,6 +345,45 @@ redesignRouter.post("/", async (c) => {
     );
   }
 
+  let designAccess: DesignAccessResponse;
+  let claimedFreeDesign = false;
+  try {
+    if (parsed.data.accessMode === "free") {
+      const claimedAccess = await claimFreeDesign(user.id);
+      if (!claimedAccess) {
+        return c.json(
+          {
+            error: {
+              message: "Your three free designs have been used. Choose a plan to continue.",
+              code: "SUBSCRIPTION_REQUIRED",
+            },
+          },
+          402
+        );
+      }
+      designAccess = claimedAccess;
+      claimedFreeDesign = true;
+    } else {
+      designAccess = await getDesignAccess(user.id);
+    }
+  } catch (error) {
+    console.error("Unable to reserve design access", error);
+    return c.json(
+      { error: { message: "Unable to check design access right now.", code: "ACCESS_CHECK_FAILED" } },
+      503
+    );
+  }
+
+  const releaseClaim = async () => {
+    if (!claimedFreeDesign) return;
+    claimedFreeDesign = false;
+    try {
+      await releaseFreeDesign(user.id);
+    } catch (error) {
+      console.error("Unable to restore free design credit", error);
+    }
+  };
+
   const imagePrompt = createInteriorPrompt(parsed.data);
   const revisedPrompt = createDesignSummary(parsed.data);
 
@@ -348,6 +399,7 @@ redesignRouter.post("/", async (c) => {
 
     if (!response.ok) {
       console.error("OpenAI image edit failed", response.status, result.error?.message);
+      await releaseClaim();
       return c.json(
         {
           error: {
@@ -375,6 +427,7 @@ redesignRouter.post("/", async (c) => {
 
     if (!imageDataUrl) {
       console.error("OpenAI image edit returned no usable image");
+      await releaseClaim();
       return c.json(
         {
           error: {
@@ -387,9 +440,16 @@ redesignRouter.post("/", async (c) => {
     }
 
     const items = await identifyDesignItems(imageDataUrl, parsed.data);
-    const data: RedesignRoomResult = { imageDataUrl, revisedPrompt, items, shoppingCountry: parsed.data.shoppingCountry };
+    const data: RedesignRoomResult = {
+      imageDataUrl,
+      revisedPrompt,
+      items,
+      shoppingCountry: parsed.data.shoppingCountry,
+      designAccess,
+    };
     return c.json({ data });
   } catch (error) {
+    await releaseClaim();
     console.error("Unexpected redesign error", error);
     return c.json(
       {

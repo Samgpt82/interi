@@ -1,3 +1,4 @@
+import { useMutation, useQuery } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { ArrowLeft, Check } from 'lucide-react-native';
@@ -6,13 +7,17 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput,
 
 import { PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
 import { useSession } from '@/lib/auth/use-session';
+import { authorizeDesignGeneration, DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
 import { COLORS, ROOM_TYPES, STYLES, type DesignStyle, type RoomType } from '@/lib/interi';
-import { useSubscriptionPaywall } from '@/lib/revenuecat';
 import { useGenerationStore } from '@/lib/state/generation-store';
 
 export default function StyleScreen() {
   const { data: session } = useSession();
-  const subscription = useSubscriptionPaywall(session?.user.id);
+  const designAccess = useQuery({
+    queryKey: DESIGN_ACCESS_QUERY_KEY,
+    queryFn: fetchDesignAccess,
+    staleTime: 1000 * 15,
+  });
   const style = useGenerationStore((state) => state.style);
   const roomType = useGenerationStore((state) => state.roomType);
   const direction = useGenerationStore((state) => state.direction);
@@ -20,6 +25,19 @@ export default function StyleScreen() {
   const setStyle = useGenerationStore((state) => state.setStyle);
   const setRoomType = useGenerationStore((state) => state.setRoomType);
   const setDirection = useGenerationStore((state) => state.setDirection);
+  const setAccessMode = useGenerationStore((state) => state.setAccessMode);
+
+  const access = useMutation({
+    mutationFn: async () => {
+      if (!session?.user.id) throw new Error('Sign in before composing a room.');
+      return authorizeDesignGeneration(session.user.id);
+    },
+    onSuccess: (result) => {
+      if (!result.accessGranted) return;
+      setAccessMode(result.accessMode);
+      router.push('/generating');
+    },
+  });
 
   const selectStyle = (value: DesignStyle) => {
     setStyle(value);
@@ -31,13 +49,13 @@ export default function StyleScreen() {
     void Haptics.selectionAsync();
   };
 
-  const composeRoom = () => {
-    subscription.mutate(undefined, {
-      onSuccess: ({ accessGranted }) => {
-        if (accessGranted) router.push('/generating');
-      },
-    });
-  };
+  const composeRoom = () => access.mutate();
+  const freeDesignsRemaining = designAccess.data?.freeDesignsRemaining;
+  const accessMessage = freeDesignsRemaining === undefined
+    ? 'Your first 3 room designs are free.'
+    : freeDesignsRemaining > 0
+      ? `${freeDesignsRemaining} free ${freeDesignsRemaining === 1 ? 'design' : 'designs'} remaining.`
+      : 'Your free designs are complete. A plan is needed for the next one.';
 
   return (
     <Screen testID="style-screen">
@@ -103,15 +121,18 @@ export default function StyleScreen() {
 
           <View className="mt-6">
             <PrimaryButton
-              label={subscription.isPending ? 'Opening plans…' : 'Compose my room'}
+              label={access.isPending ? 'Checking access…' : 'Compose my room'}
               onPress={composeRoom}
               disabled={!sourceImageDataUrl}
-              loading={subscription.isPending}
+              loading={access.isPending}
               testID="generate-button"
             />
-            {subscription.isError ? (
+            <Text testID="free-designs-remaining" className="mt-3 text-center text-xs" style={{ color: COLORS.olive }}>
+              {accessMessage}
+            </Text>
+            {access.isError ? (
               <Text testID="subscription-error" className="mt-3 text-center text-sm" style={{ color: COLORS.coral }}>
-                {subscription.error instanceof Error ? subscription.error.message : 'Unable to open subscription options.'}
+                {access.error instanceof Error ? access.error.message : 'Unable to check design access.'}
               </Text>
             ) : null}
           </View>

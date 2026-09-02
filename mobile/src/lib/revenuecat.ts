@@ -49,7 +49,7 @@ export async function resetRevenueCatUser() {
   if (!appUserID.startsWith('$RCAnonymousID:')) await Purchases.logOut();
 }
 
-async function requestFullAccess(appUserID: string) {
+export async function requestFullAccess(appUserID: string) {
   if (!revenueCatSupported) return { accessGranted: true, customerInfo: null };
 
   await configureRevenueCat(appUserID);

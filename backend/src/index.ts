@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { auth, type AppEnv } from "./auth";
 import { env } from "./env";
+import { designAccessRouter } from "./routes/design-access";
 import { foldersRouter } from "./routes/folders";
 import { projectsRouter } from "./routes/projects";
 import { redesignRouter } from "./routes/redesign";
@@ -50,6 +51,7 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 
 // Routes
 app.route("/api/sample", sampleRouter);
+app.route("/api/design-access", designAccessRouter);
 app.route("/api/redesign", redesignRouter);
 app.route("/api/folders", foldersRouter);
 app.route("/api/projects", projectsRouter);

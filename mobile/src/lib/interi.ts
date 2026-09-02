@@ -41,12 +41,21 @@ export type DesignStyle = (typeof STYLES)[number]['id'];
 export type RoomType = (typeof ROOM_TYPES)[number]['id'];
 export type ShoppingCountry = (typeof SHOPPING_COUNTRIES)[number];
 
+export type DesignAccessMode = 'free' | 'subscription';
+
+export interface DesignAccessResponse {
+  freeDesignLimit: number;
+  freeDesignsUsed: number;
+  freeDesignsRemaining: number;
+}
+
 export interface RedesignRequest {
   sourceImageDataUrl: string;
   style: DesignStyle;
   roomType: RoomType;
   shoppingCountry: ShoppingCountry;
   refinement?: string;
+  accessMode: DesignAccessMode;
 }
 
 export interface DesignItemColor { name: string; hex: string }
@@ -68,6 +77,7 @@ export interface RedesignResponse {
   revisedPrompt: string;
   items: DesignItem[];
   shoppingCountry: ShoppingCountry;
+  designAccess?: DesignAccessResponse;
 }
 
 export interface FolderResponse {
