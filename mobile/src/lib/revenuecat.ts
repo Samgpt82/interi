@@ -19,13 +19,12 @@ async function configureRevenueCat(appUserID: string) {
   if (!API_KEY) throw new Error('Subscriptions are not configured for this app yet.');
 
   if (!configurationPromise) {
-    configurationPromise = (async () => {
-      const configured = await Purchases.isConfigured();
-      if (!configured) Purchases.configure({ apiKey: API_KEY, appUserID });
-    })().catch((error) => {
-      configurationPromise = null;
-      throw error;
-    });
+    configurationPromise = Promise.resolve()
+      .then(() => Purchases.configure({ apiKey: API_KEY, appUserID }))
+      .catch((error) => {
+        configurationPromise = null;
+        throw error;
+      });
   }
 
   await configurationPromise;
@@ -44,7 +43,8 @@ export async function initializeRevenueCatUser(appUserID: string) {
 }
 
 export async function resetRevenueCatUser() {
-  if (!revenueCatSupported || !(await Purchases.isConfigured())) return;
+  if (!revenueCatSupported || !configurationPromise) return;
+  await configurationPromise;
   const appUserID = await Purchases.getAppUserID();
   if (!appUserID.startsWith('$RCAnonymousID:')) await Purchases.logOut();
 }
