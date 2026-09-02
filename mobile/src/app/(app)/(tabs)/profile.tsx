@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { ArrowUpRight, Bookmark, LogOut, Mail, MapPin, ShieldCheck } from 'lucide-react-native';
+import { ArrowUpRight, Bookmark, Crown, LogOut, Mail, MapPin, ShieldCheck } from 'lucide-react-native';
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -8,6 +8,7 @@ import { Screen, Wordmark } from '@/components/InteriUI';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession, useSession } from '@/lib/auth/use-session';
 import { COLORS } from '@/lib/interi';
+import { hasFullAccess, revenueCatSupported, resetRevenueCatUser, useRevenueCatCustomerInfo, useSubscriptionPaywall } from '@/lib/revenuecat';
 import { useSavedDesigns } from '@/lib/state/saved-designs-context';
 
 export default function ProfileScreen() {
@@ -16,11 +17,15 @@ export default function ProfileScreen() {
   const invalidateSession = useInvalidateSession();
   const email = session?.user.email ?? '';
   const initial = email.slice(0, 1).toUpperCase() || 'I';
+  const customerInfo = useRevenueCatCustomerInfo(session?.user.id);
+  const subscription = useSubscriptionPaywall(session?.user.id);
+  const fullAccess = hasFullAccess(customerInfo.data);
 
   const signOut = useMutation({
     mutationFn: async () => {
       const result = await authClient.signOut();
       if (result.error) throw new Error(result.error.message ?? 'Unable to sign out.');
+      await resetRevenueCatUser().catch((error) => console.warn('RevenueCat sign out failed', error));
       await invalidateSession();
     },
   });
@@ -52,6 +57,38 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
+
+        {revenueCatSupported ? (
+          <>
+            <Text className="mt-9 text-[10px] font-semibold uppercase tracking-[2.2px]" style={{ color: COLORS.olive }}>Membership</Text>
+            <Pressable
+              testID="profile-subscription-button"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: fullAccess || subscription.isPending }}
+              disabled={fullAccess || subscription.isPending}
+              onPress={() => subscription.mutate()}
+              className="mt-3 min-h-[84px] flex-row items-center rounded-[24px] border px-5 active:opacity-65"
+              style={{ borderColor: fullAccess ? '#B9C5A1' : '#E8A995', backgroundColor: fullAccess ? '#EEF1E7' : '#FBE9E2' }}>
+              <View className="h-11 w-11 items-center justify-center rounded-full" style={{ backgroundColor: fullAccess ? COLORS.oliveDark : COLORS.coral }}>
+                {fullAccess ? <ShieldCheck size={20} color={COLORS.white} /> : <Crown size={20} color={COLORS.white} />}
+              </View>
+              <View className="ml-4 flex-1">
+                <Text className="text-base font-semibold" style={{ color: COLORS.espresso }}>
+                  {fullAccess ? 'Full access active' : customerInfo.isPending ? 'Checking access…' : 'Unlock full access'}
+                </Text>
+                <Text className="mt-1 text-xs" style={{ color: COLORS.olive }}>
+                  {fullAccess ? 'Your plan is active on this account.' : 'Open the monthly and yearly plans.'}
+                </Text>
+              </View>
+              {!fullAccess ? <ArrowUpRight size={18} color={COLORS.coral} /> : null}
+            </Pressable>
+            {subscription.isError ? (
+              <Text testID="profile-subscription-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>
+                {subscription.error instanceof Error ? subscription.error.message : 'Unable to open subscription options.'}
+              </Text>
+            ) : null}
+          </>
+        ) : null}
 
         <Text className="mt-9 text-[10px] font-semibold uppercase tracking-[2.2px]" style={{ color: COLORS.olive }}>Studio</Text>
         <View className="mt-3 overflow-hidden rounded-[24px] border" style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper }}>

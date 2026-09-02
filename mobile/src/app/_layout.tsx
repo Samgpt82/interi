@@ -3,13 +3,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { useSession } from '@/lib/auth/use-session';
 import { COLORS } from '@/lib/interi';
+import { initializeRevenueCatUser } from '@/lib/revenuecat';
 import { SavedDesignsProvider } from '@/lib/state/saved-designs-context';
 
 export const unstable_settings = { initialRouteName: '(app)' };
@@ -37,6 +38,13 @@ const interiTheme: Theme = {
 
 export function RootLayoutNav() {
   const { data: session, isLoading } = useSession();
+
+  useEffect(() => {
+    if (!session?.user.id) return;
+    void initializeRevenueCatUser(session.user.id).catch((error) => {
+      console.warn('RevenueCat initialization failed', error);
+    });
+  }, [session?.user.id]);
 
   if (isLoading) {
     return (

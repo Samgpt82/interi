@@ -5,10 +5,14 @@ import React from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
+import { useSession } from '@/lib/auth/use-session';
 import { COLORS, ROOM_TYPES, STYLES, type DesignStyle, type RoomType } from '@/lib/interi';
+import { useSubscriptionPaywall } from '@/lib/revenuecat';
 import { useGenerationStore } from '@/lib/state/generation-store';
 
 export default function StyleScreen() {
+  const { data: session } = useSession();
+  const subscription = useSubscriptionPaywall(session?.user.id);
   const style = useGenerationStore((state) => state.style);
   const roomType = useGenerationStore((state) => state.roomType);
   const direction = useGenerationStore((state) => state.direction);
@@ -25,6 +29,14 @@ export default function StyleScreen() {
   const selectRoom = (value: RoomType) => {
     setRoomType(value);
     void Haptics.selectionAsync();
+  };
+
+  const composeRoom = () => {
+    subscription.mutate(undefined, {
+      onSuccess: ({ accessGranted }) => {
+        if (accessGranted) router.push('/generating');
+      },
+    });
   };
 
   return (
@@ -90,7 +102,18 @@ export default function StyleScreen() {
           />
 
           <View className="mt-6">
-            <PrimaryButton label="Compose my room" onPress={() => router.push('/generating')} disabled={!sourceImageDataUrl} testID="generate-button" />
+            <PrimaryButton
+              label={subscription.isPending ? 'Opening plans…' : 'Compose my room'}
+              onPress={composeRoom}
+              disabled={!sourceImageDataUrl}
+              loading={subscription.isPending}
+              testID="generate-button"
+            />
+            {subscription.isError ? (
+              <Text testID="subscription-error" className="mt-3 text-center text-sm" style={{ color: COLORS.coral }}>
+                {subscription.error instanceof Error ? subscription.error.message : 'Unable to open subscription options.'}
+              </Text>
+            ) : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
