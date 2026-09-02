@@ -150,6 +150,8 @@ export const appendProjectVersionRequestSchema = projectVersionContentSchema.ext
   refinement: z.string().trim().min(1).max(500).optional(),
 });
 
+export const updateProjectVersionItemsRequestSchema = designInventorySchema;
+
 export const projectFolderSummarySchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -199,6 +201,7 @@ export type ProjectVersionContent = z.infer<typeof projectVersionContentSchema>;
 export type SaveProjectRequest = z.infer<typeof saveProjectRequestSchema>;
 export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
 export type AppendProjectVersionRequest = z.infer<typeof appendProjectVersionRequestSchema>;
+export type UpdateProjectVersionItemsRequest = z.infer<typeof updateProjectVersionItemsRequestSchema>;
 export type ProjectFolderSummary = z.infer<typeof projectFolderSummarySchema>;
 export type ProjectVersionResponse = z.infer<typeof projectVersionResponseSchema>;
 export type ProjectVersionSummary = z.infer<typeof projectVersionSummarySchema>;

@@ -289,24 +289,30 @@ async function identifyDesignItems(
   if (!response.ok) {
     const message = await response.text();
     console.error("OpenAI inventory analysis failed", response.status, message.slice(0, 500));
-    return [];
+    throw new Error(`Inventory analysis failed (${response.status})`);
   }
 
   const result = (await response.json()) as OpenAIInventoryResponse;
   const text = extractInventoryText(result);
-  if (!text) return [];
+  if (!text) {
+    console.error("OpenAI inventory response contained no output text");
+    throw new Error("Inventory analysis returned no output");
+  }
 
+  let json: unknown;
   try {
-    const parsed = designInventorySchema.safeParse(JSON.parse(text));
-    if (!parsed.success) {
-      console.error("OpenAI inventory response failed validation", parsed.error.issues);
-      return [];
-    }
-    return parsed.data.items;
+    json = JSON.parse(text);
   } catch (error) {
     console.error("OpenAI inventory response was invalid JSON", error);
-    return [];
+    throw error;
   }
+
+  const parsed = designInventorySchema.safeParse(json);
+  if (!parsed.success) {
+    console.error("OpenAI inventory response failed validation", parsed.error.issues);
+    throw new Error("Inventory analysis returned invalid items");
+  }
+  return parsed.data.items;
 }
 
 redesignRouter.post("/items", async (c) => {

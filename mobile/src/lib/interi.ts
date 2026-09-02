@@ -132,6 +132,7 @@ export interface ProjectVersionContent {
 }
 export interface SaveProjectRequest extends ProjectVersionContent { title: string; folderId?: string | null }
 export interface AppendProjectVersionRequest extends ProjectVersionContent { baseVersionId?: string; refinement?: string }
+export interface UpdateProjectVersionItemsRequest { items: DesignItem[] }
 export interface UpdateProjectRequest { title?: string; folderId?: string | null }
 export interface CreateFolderRequest { name: string }
 export type UpdateFolderRequest = CreateFolderRequest;

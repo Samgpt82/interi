@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { ChevronDown, ChevronUp, ExternalLink, ShoppingBag, Sparkles, WandSparkles, X } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, ExternalLink, RefreshCw, ShoppingBag, Sparkles, WandSparkles, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 
@@ -9,15 +9,17 @@ import { getShoppingMarket } from '@/lib/retailers';
 interface DesignItemsProps {
   items: DesignItem[];
   loading: boolean;
+  error: boolean;
   shoppingCountry: ShoppingCountry;
   onRefine: (instruction: string) => void;
+  onRetry: () => void;
 }
 
 function slug(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
-export function DesignItems({ items, loading, shoppingCountry, onRefine }: DesignItemsProps) {
+export function DesignItems({ items, loading, error, shoppingCountry, onRefine, onRetry }: DesignItemsProps) {
   const [expandedId, setExpandedId] = useState<string | null>(items[0]?.id ?? null);
   const market = getShoppingMarket(shoppingCountry);
 
@@ -47,10 +49,16 @@ export function DesignItems({ items, loading, shoppingCountry, onRefine }: Desig
       </View>
 
       {items.length === 0 ? (
-        <View testID={loading ? 'design-items-loading' : 'design-items-empty'} className="items-center px-7 py-9">
+        <View testID={loading ? 'design-items-loading' : error ? 'design-items-error' : 'design-items-empty'} className="items-center px-7 py-9">
           <Sparkles size={24} color={COLORS.coral} />
-          <Text className="mt-3 text-center text-base" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>{loading ? 'Composing your shopping details…' : 'Shopping details are unavailable.'}</Text>
-          <Text className="mt-2 text-center text-xs leading-5" style={{ color: COLORS.olive }}>{loading ? 'Your room is ready while we identify its furniture, lighting and decor.' : 'You can still save, share or refine this room.'}</Text>
+          <Text className="mt-3 text-center text-base" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>{loading ? 'Composing your shopping details…' : error ? 'Shopping details could not be loaded.' : 'Shopping details are unavailable.'}</Text>
+          <Text className="mt-2 text-center text-xs leading-5" style={{ color: COLORS.olive }}>{loading ? 'Your room is ready while we identify its furniture, lighting and decor.' : error ? 'The design is safe. Try the item search again.' : 'You can still save, share or refine this room.'}</Text>
+          {error ? (
+            <Pressable testID="retry-design-items-button" onPress={onRetry} className="mt-5 min-h-11 flex-row items-center justify-center rounded-full px-5 active:opacity-70" style={{ backgroundColor: COLORS.espresso }}>
+              <RefreshCw size={15} color={COLORS.white} />
+              <Text className="ml-2 text-sm font-semibold" style={{ color: COLORS.white }}>Try again</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 

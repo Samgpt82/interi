@@ -8,6 +8,7 @@ import {
   appendProjectVersionRequestSchema,
   saveProjectRequestSchema,
   updateProjectRequestSchema,
+  updateProjectVersionItemsRequestSchema,
   type DesignItem,
   type ProjectDetailResponse,
   type ProjectSummaryResponse,
@@ -365,6 +366,34 @@ projectsRouter.post("/:id/versions", async (c) => {
     console.error("Project version save failed", error);
     return c.json({ error: { message: "We could not save this project version. Please try again.", code: "VERSION_SAVE_FAILED" } }, 502);
   }
+});
+
+projectsRouter.patch("/:id/versions/:versionId/items", async (c) => {
+  const user = c.get("user");
+  if (!user) return unauthorized(c);
+
+  const version = await prisma.projectVersion.findFirst({
+    where: {
+      id: c.req.param("versionId"),
+      projectId: c.req.param("id"),
+      project: { userId: user.id },
+    },
+    select: { id: true },
+  });
+  if (!version) return c.json({ error: { message: "Project version not found.", code: "NOT_FOUND" } }, 404);
+
+  const body = await c.req.json().catch(() => null);
+  const parsed = updateProjectVersionItemsRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: { message: parsed.error.issues[0]?.message ?? "Invalid design items.", code: "INVALID_REQUEST" } }, 400);
+  }
+
+  const updated = await prisma.projectVersion.update({
+    where: { id: version.id },
+    data: { itemsJson: JSON.stringify(parsed.data.items) },
+  });
+
+  return c.json({ data: serializeVersion(updated) });
 });
 
 projectsRouter.delete("/:id", async (c) => {

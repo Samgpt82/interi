@@ -25,6 +25,7 @@ interface GenerationState {
   setAccessMode: (accessMode: DesignAccessMode) => void;
   setResult: (result: RedesignResponse, options?: { dirty?: boolean; refinement?: string | null }) => void;
   setItems: (imageDataUrl: string, items: DesignItem[]) => void;
+  setVersionItems: (versionId: string, items: DesignItem[]) => void;
   setProjectId: (projectId: string | null) => void;
   setProjectFolderId: (folderId: string | null) => void;
   loadProject: (project: ProjectDetailResponse, versionId?: string) => void;
@@ -67,6 +68,10 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   setItems: (imageDataUrl, items) => set((state) => state.result?.imageDataUrl === imageDataUrl
     ? { result: { ...state.result, items } }
     : state),
+  setVersionItems: (versionId, items) => set((state) => ({
+    versions: state.versions.map((version) => version.id === versionId ? { ...version, items } : version),
+    ...(state.activeVersionId === versionId && state.result ? { result: { ...state.result, items } } : {}),
+  })),
   setProjectId: (projectId) => set({ projectId }),
   setProjectFolderId: (projectFolderId) => set({ projectFolderId }),
   loadProject: (project, versionId) => {
