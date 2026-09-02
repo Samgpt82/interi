@@ -121,20 +121,20 @@ export default function ProfileScreen() {
                   </Text>
                   <ArrowUpRight size={18} color={COLORS.oliveDark} />
                 </Pressable>
-              ) : freeDesignsRemaining === 0 ? (
+              ) : (
                 <Pressable
                   testID="profile-subscription-button"
                   accessibilityRole="button"
                   disabled={subscription.isPending}
                   onPress={() => { subscription.reset(); subscription.mutate(); }}
                   className="min-h-14 flex-row items-center border-t px-5 active:opacity-60"
-                  style={{ borderTopColor: '#EDC4B6', opacity: subscription.isPending ? 0.6 : 1 }}>
-                  <Text className="flex-1 text-sm font-semibold" style={{ color: COLORS.espresso }}>
-                    {subscription.isPending ? 'Opening plans…' : 'View monthly and yearly plans'}
+                  style={{ borderTopColor: '#D7DDC9', opacity: subscription.isPending ? 0.6 : 1 }}>
+                  <Text className="flex-1 text-sm font-semibold" style={{ color: COLORS.coral }}>
+                    {subscription.isPending ? 'Opening plans…' : 'Subscribe for full access'}
                   </Text>
                   <ArrowUpRight size={18} color={COLORS.coral} />
                 </Pressable>
-              ) : null}
+              )}
             </View>
             {customerInfo.isError ? (
               <Text testID="profile-membership-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>
