@@ -102,15 +102,34 @@ export default function CreateScreen() {
               </View>
             </>
           ) : (
-            <View testID="empty-photo-state" className="flex-1 justify-between p-6">
-              <View className="h-20 w-20 items-center justify-center rounded-full" style={{ backgroundColor: '#E6DED0' }}>
-                <ImagePlus size={31} color={COLORS.oliveDark} strokeWidth={1.5} />
+            <Pressable
+              testID="empty-photo-state"
+              accessibilityRole="button"
+              accessibilityLabel="Choose a room photo"
+              disabled={processing}
+              onPress={() => void pickPhoto()}
+              className="flex-1 active:opacity-90">
+              <View style={{ height: 230 }}>
+                <Image
+                  testID="example-room-image"
+                  source={require('../../../assets/room-example.jpg')}
+                  contentFit="cover"
+                  style={{ width: '100%', height: '100%' }}
+                />
+                <View className="absolute left-4 top-4 rounded-full bg-black/45 px-3 py-2">
+                  <Text className="text-[10px] font-semibold uppercase tracking-[1.5px]" style={{ color: COLORS.white }}>Room photo example</Text>
+                </View>
               </View>
-              <View>
-                <Text className="text-2xl" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>A clear, well-lit view works best.</Text>
-                <Text className="mt-2 text-sm leading-5" style={{ color: COLORS.olive }}>Include the floor, walls and key furniture for a more faithful composition.</Text>
+              <View className="flex-1 flex-row items-center px-5 py-4">
+                <View className="flex-1 pr-4">
+                  <Text className="text-base font-semibold" style={{ color: COLORS.espresso }}>A clear, well-lit view works best.</Text>
+                  <Text className="mt-1 text-xs leading-[18px]" style={{ color: COLORS.olive }}>Include the floor, walls and main furniture.</Text>
+                </View>
+                <View className="h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: COLORS.espresso }}>
+                  <ImagePlus size={20} color={COLORS.white} strokeWidth={1.8} />
+                </View>
               </View>
-            </View>
+            </Pressable>
           )}
         </View>
 

@@ -14,3 +14,7 @@ Email sign-in uses a six-digit verification code. The mobile app requests codes 
 ## Mobile startup performance
 
 The mobile app imports Lucide icons through `mobile/src/components/icons.ts`. That file intentionally uses direct icon modules instead of the package-wide export so Metro does not process the full icon catalog during the initial bundle.
+
+## Design assets
+
+The empty photo-upload card uses an interior photograph by Elvira Nisman, sourced from [Unsplash](https://unsplash.com/photos/minimalist-living-room-with-wooden-sideboard-aX1TTOuq83M).
