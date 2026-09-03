@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Sparkles } from 'lucide-react-native';
+import { Sparkles } from '@/components/icons';
 import React, { useEffect, useRef } from 'react';
 import { Text, View } from 'react-native';
 import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';

@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { ArrowLeft, Check, LocateFixed, MapPin, ShoppingBag } from 'lucide-react-native';
+import { ArrowLeft, Check, LocateFixed, MapPin, ShoppingBag } from '@/components/icons';
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 

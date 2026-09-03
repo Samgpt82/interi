@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { Bookmark, Check, Folder, FolderPlus, MoreHorizontal, Trash2, X } from 'lucide-react-native';
+import { Bookmark, Check, Folder, FolderPlus, MoreHorizontal, Trash2, X } from '@/components/icons';
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 

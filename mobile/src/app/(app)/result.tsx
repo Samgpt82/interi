@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { ArrowLeft, Bookmark, Check, Download, Folder, Layers3, Plus, Share2, ShoppingBag, X } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, Check, Download, Folder, Layers3, Plus, Share2, ShoppingBag, X } from '@/components/icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 

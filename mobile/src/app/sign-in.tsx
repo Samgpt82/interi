@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowRight, LockKeyhole, Mail, Sparkles } from 'lucide-react-native';
+import { ArrowRight, LockKeyhole, Mail, Sparkles } from '@/components/icons';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { ArrowUpRight, Bookmark, Crown, LogOut, Mail, MapPin, ShieldCheck } from 'lucide-react-native';
+import { ArrowUpRight, Bookmark, Crown, LogOut, Mail, MapPin, ShieldCheck } from '@/components/icons';
 import React from 'react';
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 

@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Bookmark, CircleUserRound, WandSparkles } from 'lucide-react-native';
+import { Bookmark, CircleUserRound, WandSparkles } from '@/components/icons';
 import React from 'react';
 
 import { COLORS } from '@/lib/interi';

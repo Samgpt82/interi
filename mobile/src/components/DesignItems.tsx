@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { ChevronDown, ChevronUp, ExternalLink, RefreshCw, ShoppingBag, Sparkles, WandSparkles, X } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, ExternalLink, RefreshCw, ShoppingBag, Sparkles, WandSparkles, X } from '@/components/icons';
 import React, { useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 

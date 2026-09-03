@@ -1,0 +1,37 @@
+// Direct imports keep Metro from bundling the entire Lucide icon catalog at startup.
+export { default as ArrowLeft } from 'lucide-react-native/dist/esm/icons/arrow-left';
+export { default as ArrowRight } from 'lucide-react-native/dist/esm/icons/arrow-right';
+export { default as ArrowUpRight } from 'lucide-react-native/dist/esm/icons/arrow-up-right';
+export { default as Bookmark } from 'lucide-react-native/dist/esm/icons/bookmark';
+export { default as Camera } from 'lucide-react-native/dist/esm/icons/camera';
+export { default as Check } from 'lucide-react-native/dist/esm/icons/check';
+export { default as ChevronDown } from 'lucide-react-native/dist/esm/icons/chevron-down';
+export { default as ChevronUp } from 'lucide-react-native/dist/esm/icons/chevron-up';
+export { default as CircleUserRound } from 'lucide-react-native/dist/esm/icons/circle-user-round';
+export { default as Crown } from 'lucide-react-native/dist/esm/icons/crown';
+export { default as Download } from 'lucide-react-native/dist/esm/icons/download';
+export { default as ExternalLink } from 'lucide-react-native/dist/esm/icons/external-link';
+export { default as Folder } from 'lucide-react-native/dist/esm/icons/folder';
+export { default as FolderPlus } from 'lucide-react-native/dist/esm/icons/folder-plus';
+export { default as ImagePlus } from 'lucide-react-native/dist/esm/icons/image-plus';
+export { default as Layers3 } from 'lucide-react-native/dist/esm/icons/layers';
+export { default as LocateFixed } from 'lucide-react-native/dist/esm/icons/locate-fixed';
+export { default as LockKeyhole } from 'lucide-react-native/dist/esm/icons/lock-keyhole';
+export { default as LogOut } from 'lucide-react-native/dist/esm/icons/log-out';
+export { default as Mail } from 'lucide-react-native/dist/esm/icons/mail';
+export { default as MailCheck } from 'lucide-react-native/dist/esm/icons/mail-check';
+export { default as MapPin } from 'lucide-react-native/dist/esm/icons/map-pin';
+export { default as MoreHorizontal } from 'lucide-react-native/dist/esm/icons/ellipsis';
+export { default as MoveHorizontal } from 'lucide-react-native/dist/esm/icons/move-horizontal';
+export { default as Plus } from 'lucide-react-native/dist/esm/icons/plus';
+export { default as RefreshCw } from 'lucide-react-native/dist/esm/icons/refresh-cw';
+export { default as Settings } from 'lucide-react-native/dist/esm/icons/settings';
+export { default as Share2 } from 'lucide-react-native/dist/esm/icons/share-2';
+export { default as ShieldCheck } from 'lucide-react-native/dist/esm/icons/shield-check';
+export { default as ShoppingBag } from 'lucide-react-native/dist/esm/icons/shopping-bag';
+export { default as Sparkles } from 'lucide-react-native/dist/esm/icons/sparkles';
+export { default as Trash2 } from 'lucide-react-native/dist/esm/icons/trash-2';
+export { default as WandSparkles } from 'lucide-react-native/dist/esm/icons/wand-sparkles';
+export { default as X } from 'lucide-react-native/dist/esm/icons/x';
+
+export type { LucideIcon } from 'lucide-react-native';

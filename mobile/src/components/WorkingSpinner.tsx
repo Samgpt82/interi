@@ -1,4 +1,4 @@
-import { RefreshCw } from 'lucide-react-native';
+import { RefreshCw } from '@/components/icons';
 import React, { useEffect } from 'react';
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 

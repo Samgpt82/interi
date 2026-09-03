@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { Camera, ImagePlus, Settings, Sparkles, X } from 'lucide-react-native';
+import { Camera, ImagePlus, Settings, Sparkles, X } from '@/components/icons';
 import React, { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 

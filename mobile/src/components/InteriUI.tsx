@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowRight, type LucideIcon } from 'lucide-react-native';
+import { ArrowRight, type LucideIcon } from '@/components/icons';
 import React from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

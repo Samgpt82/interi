@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, MailCheck } from 'lucide-react-native';
+import { ArrowLeft, MailCheck } from '@/components/icons';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { OtpInput } from 'react-native-otp-entry';

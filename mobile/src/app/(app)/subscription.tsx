@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Check, Crown, Sparkles } from 'lucide-react-native';
+import { ArrowLeft, Check, Crown, Sparkles } from '@/components/icons';
 import React, { useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';

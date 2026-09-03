@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import { MoveHorizontal } from 'lucide-react-native';
+import { MoveHorizontal } from '@/components/icons';
 import React, { useMemo, useRef, useState } from 'react';
 import { PanResponder, Text, View } from 'react-native';
 
