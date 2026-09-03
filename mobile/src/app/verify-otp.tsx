@@ -8,6 +8,7 @@ import { OtpInput } from 'react-native-otp-entry';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { authClient } from '@/lib/auth/auth-client';
+import { requestVerificationCode } from '@/lib/auth/request-verification-code';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import { COLORS } from '@/lib/interi';
 
@@ -26,8 +27,7 @@ export default function VerifyOtpScreen() {
 
   const resendCode = useMutation({
     mutationFn: async () => {
-      const result = await authClient.emailOtp.sendVerificationOtp({ email: email.trim(), type: 'sign-in' });
-      if (result.error) throw new Error(result.error.message ?? 'We could not resend your code.');
+      await requestVerificationCode(email.trim().toLowerCase());
     },
   });
 
@@ -64,6 +64,11 @@ export default function VerifyOtpScreen() {
         {verifyCode.isPending ? <Text testID="verify-loading" className="mt-5 text-center text-sm" style={{ color: COLORS.olive }}>Opening your studio…</Text> : null}
         {verifyCode.isError ? <Text testID="verify-error" className="mt-5 text-center text-sm" style={{ color: COLORS.coral }}>{verifyCode.error instanceof Error ? verifyCode.error.message : 'That code is not valid.'}</Text> : null}
         {resendCode.isSuccess ? <Text testID="resend-success" className="mt-5 text-center text-sm" style={{ color: COLORS.oliveDark }}>A fresh code is on its way.</Text> : null}
+        {resendCode.isError ? (
+          <Text testID="resend-error" className="mt-5 text-center text-sm" style={{ color: COLORS.coral }}>
+            {resendCode.error instanceof Error ? resendCode.error.message : 'We could not resend your code.'}
+          </Text>
+        ) : null}
 
         <View className="mt-auto items-center">
           <Text className="text-sm" style={{ color: COLORS.olive }}>Didn’t receive it?</Text>

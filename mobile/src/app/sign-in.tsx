@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { authClient } from '@/lib/auth/auth-client';
+import { requestVerificationCode } from '@/lib/auth/request-verification-code';
 import { COLORS } from '@/lib/interi';
 
 export default function SignInScreen() {
@@ -16,8 +16,7 @@ export default function SignInScreen() {
     mutationFn: async () => {
       const normalizedEmail = email.trim().toLowerCase();
       if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) throw new Error('Enter a valid email address.');
-      const result = await authClient.emailOtp.sendVerificationOtp({ email: normalizedEmail, type: 'sign-in' });
-      if (result.error) throw new Error(result.error.message ?? 'We could not send your code.');
+      await requestVerificationCode(normalizedEmail);
       return normalizedEmail;
     },
     onSuccess: (normalizedEmail) => router.push(`/verify-otp?email=${encodeURIComponent(normalizedEmail)}` as never),

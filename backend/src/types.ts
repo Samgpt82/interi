@@ -30,6 +30,17 @@ export const shoppingCountrySchema = z.enum(["SE", "GB"]);
 export const FREE_DESIGN_LIMIT = 3;
 export const SUBSCRIPTION_REQUIRED_ERROR_CODE = "SUBSCRIPTION_REQUIRED";
 
+export const requestVerificationCodeSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+});
+
+export const verificationCodeResponseSchema = z.object({
+  success: z.literal(true),
+});
+
+export type RequestVerificationCode = z.infer<typeof requestVerificationCodeSchema>;
+export type VerificationCodeResponse = z.infer<typeof verificationCodeResponseSchema>;
+
 export const designAccessModeSchema = z.enum(["free", "subscription"]);
 
 export const designAccessResponseSchema = z.object({

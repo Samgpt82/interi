@@ -8,6 +8,7 @@ import { foldersRouter } from "./routes/folders";
 import { projectsRouter } from "./routes/projects";
 import { redesignRouter } from "./routes/redesign";
 import { sampleRouter } from "./routes/sample";
+import { verificationCodeRouter } from "./routes/verification-code";
 import { logger } from "hono/logger";
 
 const app = new Hono<AppEnv>();
@@ -51,6 +52,7 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 
 // Routes
 app.route("/api/sample", sampleRouter);
+app.route("/api/verification-code", verificationCodeRouter);
 app.route("/api/design-access", designAccessRouter);
 app.route("/api/redesign", redesignRouter);
 app.route("/api/folders", foldersRouter);

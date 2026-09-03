@@ -5,6 +5,7 @@ import { emailOTP } from "better-auth/plugins";
 
 import { env } from "./env";
 import { prisma } from "./prisma";
+import { sendVerificationCodeEmail } from "./services/verification-email";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "sqlite" }),
@@ -27,21 +28,7 @@ export const auth = betterAuth({
       async sendVerificationOTP({ email, otp, type }) {
         if (type !== "sign-in") return;
 
-        const response = await fetch("https://smtp.vibecodeapp.com/v1/send/otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            to: email,
-            code: String(otp),
-            fromName: "Interi",
-            lang: "en",
-          }),
-        });
-
-        if (!response.ok) {
-          const data = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(data?.error ?? `Failed to send verification code (${response.status})`);
-        }
+        await sendVerificationCodeEmail(email, String(otp));
       },
     }),
   ],
