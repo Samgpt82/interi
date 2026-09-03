@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, ExternalLink, RefreshCw, ShoppingBag, Sparkles,
 import React, { useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 
+import { WorkingSpinner } from '@/components/WorkingSpinner';
 import { COLORS, type DesignItem, type ShoppingCountry } from '@/lib/interi';
 import { getShoppingMarket } from '@/lib/retailers';
 
@@ -50,9 +51,13 @@ export function DesignItems({ items, loading, error, shoppingCountry, onRefine, 
 
       {items.length === 0 ? (
         <View testID={loading ? 'design-items-loading' : error ? 'design-items-error' : 'design-items-empty'} className="items-center px-7 py-9">
-          <Sparkles size={24} color={COLORS.coral} />
-          <Text className="mt-3 text-center text-base" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>{loading ? 'Composing your shopping details…' : error ? 'Shopping details could not be loaded.' : 'Shopping details are unavailable.'}</Text>
-          <Text className="mt-2 text-center text-xs leading-5" style={{ color: COLORS.olive }}>{loading ? 'Your room is ready while we identify its furniture, lighting and decor.' : error ? 'The design is safe. Try the item search again.' : 'You can still save, share or refine this room.'}</Text>
+          {loading ? (
+            <View className="h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: '#FBE4DD' }}>
+              <WorkingSpinner testID="design-items-loading-spinner" accessibilityLabel="Finding items for this room" size={28} color={COLORS.coral} />
+            </View>
+          ) : <Sparkles size={24} color={COLORS.coral} />}
+          <Text className="mt-3 text-center text-base" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>{loading ? 'Finding items for your room…' : error ? 'Shopping details could not be loaded.' : 'Shopping details are unavailable.'}</Text>
+          <Text className="mt-2 text-center text-xs leading-5" style={{ color: COLORS.olive }}>{loading ? 'We’re identifying the furniture, lighting and decor now.' : error ? 'The design is safe. Try the item search again.' : 'You can still save, share or refine this room.'}</Text>
           {error ? (
             <Pressable testID="retry-design-items-button" onPress={onRetry} className="mt-5 min-h-11 flex-row items-center justify-center rounded-full px-5 active:opacity-70" style={{ backgroundColor: COLORS.espresso }}>
               <RefreshCw size={15} color={COLORS.white} />

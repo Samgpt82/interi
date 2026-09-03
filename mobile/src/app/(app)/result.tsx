@@ -1,14 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { ArrowLeft, Bookmark, Check, Download, Folder, Layers3, Plus, RefreshCw, Share2, ShoppingBag, X } from 'lucide-react-native';
+import { ArrowLeft, Bookmark, Check, Download, Folder, Layers3, Plus, Share2, ShoppingBag, X } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 import { BeforeAfterSlider } from '@/components/BeforeAfterSlider';
 import { DesignItems } from '@/components/DesignItems';
 import { IconButton, PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
+import { WorkingSpinner } from '@/components/WorkingSpinner';
 import { api, isApiError } from '@/lib/api/api';
 import { useSession } from '@/lib/auth/use-session';
 import { authorizeDesignGeneration, DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
@@ -23,29 +23,6 @@ interface InventoryRequest {
   request: DesignInventoryRequest;
   projectId: string | null;
   versionId: string | null;
-}
-
-function RefinementSpinner() {
-  const rotation = useSharedValue<number>(0);
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value}deg` }],
-  }));
-
-  useEffect(() => {
-    rotation.value = withRepeat(
-      withTiming(360, { duration: 900, easing: Easing.linear }),
-      -1,
-      false,
-    );
-
-    return () => cancelAnimation(rotation);
-  }, [rotation]);
-
-  return (
-    <Animated.View testID="refinement-loading-spinner" style={animatedStyle}>
-      <RefreshCw size={34} color={COLORS.white} />
-    </Animated.View>
-  );
 }
 
 export default function ResultScreen() {
@@ -340,7 +317,7 @@ export default function ResultScreen() {
 
           {versions.length ? <ScrollView testID="version-history" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, paddingTop: 15, paddingRight: 20 }}>{versions.map((version) => <Pressable key={version.id} testID={`version-${version.number}-button`} disabled={resultPending || dirty} onPress={() => { selectVersion(version.id); setNotice(null); }} className="min-h-11 min-w-16 items-center justify-center rounded-full border px-4" style={{ borderColor: activeVersionId === version.id ? COLORS.coral : COLORS.line, backgroundColor: activeVersionId === version.id ? '#FBE4DD' : COLORS.paper, opacity: resultPending || dirty ? 0.45 : 1 }}><Text className="font-semibold" style={{ color: activeVersionId === version.id ? COLORS.coral : COLORS.espresso }}>v{version.number}</Text></Pressable>)}{dirty ? <View testID="unsaved-version-chip" className="min-h-11 justify-center rounded-full px-4" style={{ backgroundColor: COLORS.espresso }}><Text className="text-sm font-semibold" style={{ color: COLORS.white }}>Save this edit to switch versions</Text></View> : null}</ScrollView> : null}
 
-          <View className="relative mt-5"><BeforeAfterSlider beforeUri={selectedBase?.sourceImageUrl ?? sourceImageDataUrl} afterUri={result.imageDataUrl} />{refinementPending ? <View testID="refinement-loading" className="absolute inset-0 items-center justify-center rounded-[28px] bg-black/45"><RefinementSpinner /><Text className="mt-3 text-sm font-semibold" style={{ color: COLORS.white }}>{refinementAccess.isPending ? 'Checking access…' : 'Refining the composition…'}</Text></View> : null}<Pressable testID="view-design-items-button" accessibilityRole="button" onPress={() => scrollRef.current?.scrollTo({ y: Math.max(0, itemsSectionY - 12), animated: true })} className="absolute right-4 top-4 min-h-11 flex-row items-center rounded-full border border-white/50 bg-black/60 px-4"><ShoppingBag size={15} color={COLORS.white} /><Text className="ml-2 text-xs font-semibold" style={{ color: COLORS.white }}>{result.items?.length ? `${result.items.length} items · Shop` : 'View items'}</Text></Pressable></View>
+          <View className="relative mt-5"><BeforeAfterSlider beforeUri={selectedBase?.sourceImageUrl ?? sourceImageDataUrl} afterUri={result.imageDataUrl} />{refinementPending ? <View testID="refinement-loading" className="absolute inset-0 items-center justify-center rounded-[28px] bg-black/45"><WorkingSpinner testID="refinement-loading-spinner" accessibilityLabel="Refining the room" size={34} color={COLORS.white} /><Text className="mt-3 text-sm font-semibold" style={{ color: COLORS.white }}>{refinementAccess.isPending ? 'Checking access…' : 'Refining the composition…'}</Text></View> : null}<Pressable testID="view-design-items-button" accessibilityRole="button" onPress={() => scrollRef.current?.scrollTo({ y: Math.max(0, itemsSectionY - 12), animated: true })} className="absolute right-4 top-4 min-h-11 flex-row items-center rounded-full border border-white/50 bg-black/60 px-4"><ShoppingBag size={15} color={COLORS.white} /><Text className="ml-2 text-xs font-semibold" style={{ color: COLORS.white }}>{result.items?.length ? `${result.items.length} items · Shop` : 'View items'}</Text></Pressable></View>
           <Text testID="revised-prompt" numberOfLines={3} className="mt-4 text-sm italic leading-5" style={{ color: COLORS.olive }}>“{result.revisedPrompt}”</Text>
           <View onLayout={(event) => setItemsSectionY(event.nativeEvent.layout.y)}><DesignItems items={result.items ?? []} loading={resultPending} error={itemsError} shoppingCountry={result.shoppingCountry} onRefine={applyItemRefinement} onRetry={retryItems} /></View>
           <View className="mt-6 flex-row gap-3"><View className="flex-1"><IconButton icon={projectId && !dirty ? Check : Bookmark} label={refinementPending ? 'Refining…' : itemsPending ? 'Finding items…' : saving ? 'Saving…' : projectId ? (dirty ? 'Save new version' : `Saved v${activeVersionNumber ?? 1}`) : 'Save'} onPress={() => { if (!saving && !resultPending) handleSave(); }} testID="save-design-button" /></View><View className="flex-1"><IconButton icon={Download} label={exporting ? 'Saving…' : 'Photos'} onPress={() => void exportImage()} testID="export-image-button" /></View><Pressable testID="share-design-button" onPress={() => void shareImage(result.imageDataUrl)} className="h-12 w-12 items-center justify-center rounded-full border" style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper }}><Share2 size={18} color={COLORS.espresso} /></Pressable></View>
