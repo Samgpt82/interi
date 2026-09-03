@@ -78,12 +78,12 @@ export default function CreateScreen() {
         </View>
 
         <View className="mt-10 max-w-[350px]">
-          <Text className="text-[11px] font-semibold uppercase tracking-[3px]" style={{ color: COLORS.coral }}>Your room, reconsidered</Text>
+          <Text className="text-[11px] font-semibold uppercase tracking-[3px]" style={{ color: COLORS.coral }}>Your room, reimagined</Text>
           <Text className="mt-3 text-[43px] leading-[46px]" style={{ color: COLORS.espresso, fontFamily: 'Georgia', letterSpacing: -1.7 }}>
-            Begin with what’s already yours.
+            Your room, reimagined.
           </Text>
           <Text className="mt-4 text-base leading-6" style={{ color: COLORS.olive }}>
-            Photograph a room. Interi composes a considered new direction around its architecture.
+            Take a photo. Choose a style. See what your space could become.
           </Text>
         </View>
 
