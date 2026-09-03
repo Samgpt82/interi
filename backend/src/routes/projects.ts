@@ -166,6 +166,17 @@ async function folderBelongsToUser(folderId: string, userId: string) {
   return prisma.folder.findFirst({ where: { id: folderId, userId }, select: { id: true } });
 }
 
+async function findProjectByClientRequestId(clientRequestId: string, userId: string) {
+  return prisma.project.findFirst({
+    where: { id: clientRequestId, userId },
+    include: {
+      folder: { select: { id: true, name: true } },
+      versions: { orderBy: { number: "asc" } },
+      _count: { select: { versions: true } },
+    },
+  });
+}
+
 projectsRouter.get("/", async (c) => {
   const user = c.get("user");
   if (!user) return unauthorized(c);
@@ -210,6 +221,11 @@ projectsRouter.post("/", async (c) => {
     return c.json({ error: { message: parsed.error.issues[0]?.message ?? "Invalid project.", code: "INVALID_REQUEST" } }, 400);
   }
 
+  if (parsed.data.clientRequestId) {
+    const existingRequest = await findProjectByClientRequestId(parsed.data.clientRequestId, user.id);
+    if (existingRequest) return c.json({ data: serializeDetail(existingRequest) });
+  }
+
   if (parsed.data.folderId && !(await folderBelongsToUser(parsed.data.folderId, user.id))) {
     return c.json({ error: { message: "Folder not found.", code: "INVALID_FOLDER" } }, 400);
   }
@@ -234,11 +250,12 @@ projectsRouter.post("/", async (c) => {
 
     const project = await prisma.project.create({
       data: {
+        id: parsed.data.clientRequestId,
         userId: user.id,
         folderId: parsed.data.folderId ?? null,
         title: parsed.data.title,
         ...designData,
-        versions: { create: { number: 1, ...designData } },
+        versions: { create: { id: parsed.data.clientRequestId ? `${parsed.data.clientRequestId}-v1` : undefined, number: 1, ...designData } },
       },
       include: {
         folder: { select: { id: true, name: true } },
@@ -250,6 +267,10 @@ projectsRouter.post("/", async (c) => {
     return c.json({ data: serializeDetail(project) }, 201);
   } catch (error) {
     await cleanupStoredFiles([sourceFile?.id, generatedFile?.id].filter((id): id is string => !!id));
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && parsed.data.clientRequestId) {
+      const existingRequest = await findProjectByClientRequestId(parsed.data.clientRequestId, user.id);
+      if (existingRequest) return c.json({ data: serializeDetail(existingRequest) });
+    }
     console.error("Project save failed", error);
     return c.json({ error: { message: "We could not save this project. Please try again.", code: "PROJECT_SAVE_FAILED" } }, 502);
   }
@@ -301,6 +322,13 @@ projectsRouter.post("/:id/versions", async (c) => {
     return c.json({ error: { message: parsed.error.issues[0]?.message ?? "Invalid project version.", code: "INVALID_REQUEST" } }, 400);
   }
 
+  if (parsed.data.clientRequestId) {
+    const existingRequest = await prisma.projectVersion.findFirst({
+      where: { projectId: project.id, id: parsed.data.clientRequestId },
+    });
+    if (existingRequest) return c.json({ data: serializeVersion(existingRequest) });
+  }
+
   if (parsed.data.baseVersionId) {
     const baseVersion = await prisma.projectVersion.findFirst({
       where: { id: parsed.data.baseVersionId, projectId: project.id, project: { userId: user.id } },
@@ -317,7 +345,7 @@ projectsRouter.post("/:id/versions", async (c) => {
     sourceFile = await uploadImage(parsed.data.sourceImageDataUrl, `interi-source-${Date.now()}.jpg`);
     generatedFile = await uploadImage(parsed.data.imageDataUrl, `interi-design-${Date.now()}.jpg`);
 
-    const versionId = crypto.randomUUID();
+    const versionId = parsed.data.clientRequestId ?? crypto.randomUUID();
     let createdVersion: VersionRecord | null = null;
     for (let attempt = 0; attempt < 3 && !createdVersion; attempt += 1) {
       try {

@@ -130,9 +130,9 @@ export interface ProjectVersionContent {
   style: DesignStyle;
   roomType: RoomType;
 }
-export interface SaveProjectRequest extends ProjectVersionContent { title: string; folderId?: string | null }
-export interface AppendProjectVersionRequest extends ProjectVersionContent { baseVersionId?: string; refinement?: string }
+export interface SaveProjectRequest extends ProjectVersionContent { title: string; folderId?: string | null; clientRequestId?: string }
+export interface AppendProjectVersionRequest extends ProjectVersionContent { baseVersionId?: string; refinement?: string; clientRequestId?: string }
 export interface UpdateProjectVersionItemsRequest { items: DesignItem[] }
 export interface UpdateProjectRequest { title?: string; folderId?: string | null }
-export interface CreateFolderRequest { name: string }
+export interface CreateFolderRequest { name: string; clientRequestId?: string }
 export type UpdateFolderRequest = CreateFolderRequest;

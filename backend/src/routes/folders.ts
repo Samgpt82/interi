@@ -58,14 +58,29 @@ foldersRouter.post("/", async (c) => {
     return c.json({ error: { message: parsed.error.issues[0]?.message ?? "Invalid folder.", code: "INVALID_REQUEST" } }, 400);
   }
 
+  if (parsed.data.clientRequestId) {
+    const existingRequest = await prisma.folder.findFirst({
+      where: { userId: user.id, id: parsed.data.clientRequestId },
+      include: { _count: { select: { projects: true } } },
+    });
+    if (existingRequest) return c.json({ data: serializeFolder(existingRequest) });
+  }
+
   try {
     const folder = await prisma.folder.create({
-      data: { userId: user.id, name: parsed.data.name },
+      data: { id: parsed.data.clientRequestId, userId: user.id, name: parsed.data.name },
       include: { _count: { select: { projects: true } } },
     });
     return c.json({ data: serializeFolder(folder) }, 201);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      if (parsed.data.clientRequestId) {
+        const existingRequest = await prisma.folder.findFirst({
+          where: { userId: user.id, id: parsed.data.clientRequestId },
+          include: { _count: { select: { projects: true } } },
+        });
+        if (existingRequest) return c.json({ data: serializeFolder(existingRequest) });
+      }
       return c.json({ error: { message: "A folder with this name already exists.", code: "FOLDER_NAME_TAKEN" } }, 409);
     }
     throw error;

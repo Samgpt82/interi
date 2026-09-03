@@ -32,53 +32,75 @@ export function isApiError(error: unknown): error is ApiError {
 
 const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL!;
 
-const request = async <T>(
-  url: string,
-  options: { method?: string; body?: string } = {}
-): Promise<T> => {
+interface RequestOptions {
+  method?: string;
+  body?: string;
+  retryTransient?: boolean;
+}
+
+const TRANSIENT_GATEWAY_STATUSES = new Set([502, 503, 504]);
+const TRANSIENT_RETRY_DELAYS_MS = [350, 900];
+
+const wait = (milliseconds: number) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+
+const request = async <T>(url: string, options: RequestOptions = {}): Promise<T> => {
+  const { retryTransient = (options.method ?? "GET") === "GET", ...fetchOptions } = options;
   const cookie = await authClient.getCookie();
-  const response = await fetch(`${baseUrl}${url}`, {
-    ...options,
-    credentials: "include",
-    headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(cookie ? { Cookie: cookie } : {}),
-    },
-  });
 
-  // 1. Handle 204 No Content
-  if (response.status === 204) {
-    return undefined as T;
-  }
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const response = await fetch(`${baseUrl}${url}`, {
+        ...fetchOptions,
+        credentials: "include",
+        headers: {
+          ...(fetchOptions.body ? { "Content-Type": "application/json" } : {}),
+          ...(cookie ? { Cookie: cookie } : {}),
+        },
+      });
 
-  // 2. JSON responses: surface API errors, then unwrap { data }
-  const contentType = response.headers.get("content-type");
-  if (contentType?.includes("application/json")) {
-    const json = (await response.json()) as ApiResponse<T> & ApiErrorResponse;
-    if (!response.ok) {
-      throw new ApiError(
-        json.error?.message ?? `Request failed (${response.status})`,
-        response.status,
-        json.error?.code
-      );
+      if (retryTransient && TRANSIENT_GATEWAY_STATUSES.has(response.status) && attempt < TRANSIENT_RETRY_DELAYS_MS.length) {
+        await wait(TRANSIENT_RETRY_DELAYS_MS[attempt]!);
+        continue;
+      }
+
+      // 1. Handle 204 No Content
+      if (response.status === 204) {
+        return undefined as T;
+      }
+
+      // 2. JSON responses: surface API errors, then unwrap { data }
+      const contentType = response.headers.get("content-type");
+      if (contentType?.includes("application/json")) {
+        const json = (await response.json()) as ApiResponse<T> & ApiErrorResponse;
+        if (!response.ok) {
+          throw new ApiError(
+            json.error?.message ?? `Request failed (${response.status})`,
+            response.status,
+            json.error?.code
+          );
+        }
+        return json.data;
+      }
+
+      // 3. Non-JSON errors still need to reject mutations
+      if (!response.ok) {
+        throw new ApiError(`Request failed (${response.status})`, response.status);
+      }
+      return undefined as T;
+    } catch (error) {
+      if (error instanceof ApiError || !retryTransient || attempt >= TRANSIENT_RETRY_DELAYS_MS.length) throw error;
+      await wait(TRANSIENT_RETRY_DELAYS_MS[attempt]!);
     }
-    return json.data;
   }
-
-  // 3. Non-JSON errors still need to reject mutations
-  if (!response.ok) {
-    throw new ApiError(`Request failed (${response.status})`, response.status);
-  }
-  return undefined as T;
 };
 
 export const api = {
   get: <T>(url: string) => request<T>(url),
-  post: <T>(url: string, body: any) =>
-    request<T>(url, { method: "POST", body: JSON.stringify(body) }),
-  put: <T>(url: string, body: any) =>
+  post: <T>(url: string, body: unknown, options: Pick<RequestOptions, "retryTransient"> = {}) =>
+    request<T>(url, { method: "POST", body: JSON.stringify(body), ...options }),
+  put: <T>(url: string, body: unknown) =>
     request<T>(url, { method: "PUT", body: JSON.stringify(body) }),
   delete: <T>(url: string) => request<T>(url, { method: "DELETE" }),
-  patch: <T>(url: string, body: any) =>
+  patch: <T>(url: string, body: unknown) =>
     request<T>(url, { method: "PATCH", body: JSON.stringify(body) }),
 };

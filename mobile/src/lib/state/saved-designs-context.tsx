@@ -22,6 +22,10 @@ import type {
 
 const LEGACY_STORAGE_KEY = '@interi/saved-designs/v1';
 
+function createClientRequestId(kind: 'folder' | 'project' | 'version') {
+  return `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 interface LegacySavedDesign {
   id: string;
   createdAt: string;
@@ -83,7 +87,11 @@ export function SavedDesignsProvider({ children }: { children: React.ReactNode }
   });
 
   const createProjectMutation = useMutation({
-    mutationFn: async (request: SaveProjectRequest) => api.post<ProjectDetailResponse>('/api/projects', await prepareContent(request)),
+    mutationFn: async (request: SaveProjectRequest) => api.post<ProjectDetailResponse>(
+      '/api/projects',
+      { ...await prepareContent(request), clientRequestId: request.clientRequestId ?? createClientRequestId('project') },
+      { retryTransient: true },
+    ),
     onSuccess: (project) => {
       queryClient.setQueryData<ProjectSummaryResponse[]>(projectsQueryKey, (current = []) => [project, ...current.filter((item) => item.id !== project.id)]);
       void queryClient.invalidateQueries({ queryKey: foldersQueryKey });
@@ -91,7 +99,11 @@ export function SavedDesignsProvider({ children }: { children: React.ReactNode }
   });
   const appendVersionMutation = useMutation({
     mutationFn: async ({ projectId, request }: { projectId: string; request: AppendProjectVersionRequest }) =>
-      api.post<ProjectVersionResponse>(`/api/projects/${projectId}/versions`, await prepareContent(request)),
+      api.post<ProjectVersionResponse>(
+        `/api/projects/${projectId}/versions`,
+        { ...await prepareContent(request), clientRequestId: request.clientRequestId ?? createClientRequestId('version') },
+        { retryTransient: true },
+      ),
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
       void queryClient.invalidateQueries({ queryKey: ['project', userKey, variables.projectId] });
@@ -113,7 +125,11 @@ export function SavedDesignsProvider({ children }: { children: React.ReactNode }
     },
   });
   const createFolderMutation = useMutation({
-    mutationFn: (request: CreateFolderRequest) => api.post<FolderResponse>('/api/folders', request),
+    mutationFn: (request: CreateFolderRequest) => api.post<FolderResponse>(
+      '/api/folders',
+      { ...request, clientRequestId: request.clientRequestId ?? createClientRequestId('folder') },
+      { retryTransient: true },
+    ),
     onSuccess: (folder) => queryClient.setQueryData<FolderResponse[]>(foldersQueryKey, (current = []) => [...current, folder].sort((a, b) => a.name.localeCompare(b.name))),
   });
   const renameFolderMutation = useMutation({

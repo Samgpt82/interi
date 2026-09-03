@@ -118,8 +118,11 @@ export const projectImageDataSchema = z
 
 export const folderNameSchema = z.string().trim().min(1).max(80);
 
+const clientRequestIdSchema = z.string().min(8).max(100).regex(/^[A-Za-z0-9_-]+$/);
+
 export const createFolderRequestSchema = z.object({
   name: folderNameSchema,
+  clientRequestId: clientRequestIdSchema.optional(),
 });
 
 export const updateFolderRequestSchema = createFolderRequestSchema;
@@ -145,6 +148,7 @@ export const projectVersionContentSchema = z.object({
 export const saveProjectRequestSchema = projectVersionContentSchema.extend({
   title: z.string().trim().min(1).max(80),
   folderId: z.string().min(1).nullable().optional(),
+  clientRequestId: clientRequestIdSchema.optional(),
 });
 
 export const updateProjectRequestSchema = z
@@ -159,6 +163,7 @@ export const updateProjectRequestSchema = z
 export const appendProjectVersionRequestSchema = projectVersionContentSchema.extend({
   baseVersionId: z.string().min(1).optional(),
   refinement: z.string().trim().min(1).max(500).optional(),
+  clientRequestId: clientRequestIdSchema.optional(),
 });
 
 export const updateProjectVersionItemsRequestSchema = designInventorySchema;
