@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 
-import { api } from '@/lib/api/api';
+import { api, isApiError } from '@/lib/api/api';
 import { useSession } from '@/lib/auth/use-session';
 import { prepareImageForUpload } from '@/lib/image-utils';
 import type {
@@ -24,6 +24,44 @@ const LEGACY_STORAGE_KEY = '@interi/saved-designs/v1';
 
 function createClientRequestId(kind: 'folder' | 'project' | 'version') {
   return `${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+const TRANSIENT_WRITE_STATUSES = new Set([502, 503, 504]);
+const RECONCILIATION_DELAYS_MS = [300, 900, 1800];
+
+function isTransientWriteFailure(error: unknown) {
+  return !isApiError(error) || TRANSIENT_WRITE_STATUSES.has(error.status);
+}
+
+const wait = (milliseconds: number) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+
+async function performRecoverableWrite<T>(write: () => Promise<T>, lookup: () => Promise<T | null>): Promise<T> {
+  let lastError: unknown;
+
+  for (let writeAttempt = 0; writeAttempt < 2; writeAttempt += 1) {
+    try {
+      return await write();
+    } catch (error) {
+      if (!isTransientWriteFailure(error)) throw error;
+      lastError = error;
+    }
+
+    for (const delay of RECONCILIATION_DELAYS_MS) {
+      await wait(delay);
+      try {
+        const savedValue = await lookup();
+        if (savedValue) return savedValue;
+      } catch (error) {
+        if (isApiError(error) && error.status === 404) continue;
+        if (!isTransientWriteFailure(error)) throw error;
+      }
+    }
+  }
+
+  if (isApiError(lastError) && !lastError.code) {
+    throw new Error('The connection was interrupted while saving. Refresh My Designs before trying again.');
+  }
+  throw lastError;
 }
 
 interface LegacySavedDesign {
@@ -87,23 +125,31 @@ export function SavedDesignsProvider({ children }: { children: React.ReactNode }
   });
 
   const createProjectMutation = useMutation({
-    mutationFn: async (request: SaveProjectRequest) => api.post<ProjectDetailResponse>(
-      '/api/projects',
-      { ...await prepareContent(request), clientRequestId: request.clientRequestId ?? createClientRequestId('project') },
-      { retryTransient: true },
-    ),
+    mutationFn: async (request: SaveProjectRequest) => {
+      const clientRequestId = request.clientRequestId ?? createClientRequestId('project');
+      const body = { ...await prepareContent(request), clientRequestId };
+      return performRecoverableWrite(
+        () => api.post<ProjectDetailResponse>('/api/projects', body),
+        () => api.get<ProjectDetailResponse>(`/api/projects/${clientRequestId}`),
+      );
+    },
     onSuccess: (project) => {
       queryClient.setQueryData<ProjectSummaryResponse[]>(projectsQueryKey, (current = []) => [project, ...current.filter((item) => item.id !== project.id)]);
       void queryClient.invalidateQueries({ queryKey: foldersQueryKey });
     },
   });
   const appendVersionMutation = useMutation({
-    mutationFn: async ({ projectId, request }: { projectId: string; request: AppendProjectVersionRequest }) =>
-      api.post<ProjectVersionResponse>(
-        `/api/projects/${projectId}/versions`,
-        { ...await prepareContent(request), clientRequestId: request.clientRequestId ?? createClientRequestId('version') },
-        { retryTransient: true },
-      ),
+    mutationFn: async ({ projectId, request }: { projectId: string; request: AppendProjectVersionRequest }) => {
+      const clientRequestId = request.clientRequestId ?? createClientRequestId('version');
+      const body = { ...await prepareContent(request), clientRequestId };
+      return performRecoverableWrite(
+        () => api.post<ProjectVersionResponse>(`/api/projects/${projectId}/versions`, body),
+        async () => {
+          const project = await api.get<ProjectDetailResponse>(`/api/projects/${projectId}`);
+          return project.versions.find((version) => version.id === clientRequestId) ?? null;
+        },
+      );
+    },
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: projectsQueryKey });
       void queryClient.invalidateQueries({ queryKey: ['project', userKey, variables.projectId] });
@@ -125,12 +171,15 @@ export function SavedDesignsProvider({ children }: { children: React.ReactNode }
     },
   });
   const createFolderMutation = useMutation({
-    mutationFn: (request: CreateFolderRequest) => api.post<FolderResponse>(
-      '/api/folders',
-      { ...request, clientRequestId: request.clientRequestId ?? createClientRequestId('folder') },
-      { retryTransient: true },
-    ),
-    onSuccess: (folder) => queryClient.setQueryData<FolderResponse[]>(foldersQueryKey, (current = []) => [...current, folder].sort((a, b) => a.name.localeCompare(b.name))),
+    mutationFn: (request: CreateFolderRequest) => {
+      const clientRequestId = request.clientRequestId ?? createClientRequestId('folder');
+      const body = { ...request, clientRequestId };
+      return performRecoverableWrite(
+        () => api.post<FolderResponse>('/api/folders', body),
+        () => api.get<FolderResponse>(`/api/folders/${clientRequestId}`),
+      );
+    },
+    onSuccess: (folder) => queryClient.setQueryData<FolderResponse[]>(foldersQueryKey, (current = []) => [...current.filter((item) => item.id !== folder.id), folder].sort((a, b) => a.name.localeCompare(b.name))),
   });
   const renameFolderMutation = useMutation({
     mutationFn: ({ id, name }: { id: string; name: string }) => api.patch<FolderResponse>(`/api/folders/${id}`, { name }),

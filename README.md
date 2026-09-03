@@ -17,7 +17,7 @@ The mobile app imports Lucide icons through `mobile/src/components/icons.ts`. Th
 
 ## Saved-design reliability
 
-Saved-project, version, and folder creation requests include a stable client request ID. The backend uses that ID as the new record ID, so retrying after a temporary gateway interruption returns the original result instead of creating a duplicate. The mobile API client automatically retries temporary 502, 503, and 504 responses for reads and these idempotent create operations.
+Saved-project, version, and folder creation requests include a stable client request ID. Image uploads run in parallel to keep saves below gateway time limits. If a temporary 502, 503, or 504 interrupts the response after the database write succeeds, the mobile app looks up that exact record before retrying, so it reports the successful save instead of showing a false failure or creating a duplicate.
 
 ## Design assets
 

@@ -233,14 +233,21 @@ projectsRouter.post("/", async (c) => {
   let sourceFile: StoredFile | null = null;
   let generatedFile: StoredFile | null = null;
   try {
-    sourceFile = await uploadImage(parsed.data.sourceImageDataUrl, `interi-source-${Date.now()}.jpg`);
-    generatedFile = await uploadImage(parsed.data.imageDataUrl, `interi-design-${Date.now()}.jpg`);
+    const uploadTimestamp = Date.now();
+    const [sourceUpload, generatedUpload] = await Promise.allSettled([
+      uploadImage(parsed.data.sourceImageDataUrl, `interi-source-${uploadTimestamp}.jpg`),
+      uploadImage(parsed.data.imageDataUrl, `interi-design-${uploadTimestamp}.jpg`),
+    ]);
+    if (sourceUpload.status === "fulfilled") sourceFile = sourceUpload.value;
+    if (generatedUpload.status === "fulfilled") generatedFile = generatedUpload.value;
+    if (sourceUpload.status === "rejected") throw sourceUpload.reason;
+    if (generatedUpload.status === "rejected") throw generatedUpload.reason;
 
     const designData = {
-      sourceImageUrl: sourceFile.url,
-      sourceImageFileId: sourceFile.id,
-      imageUrl: generatedFile.url,
-      imageFileId: generatedFile.id,
+      sourceImageUrl: sourceFile!.url,
+      sourceImageFileId: sourceFile!.id,
+      imageUrl: generatedFile!.url,
+      imageFileId: generatedFile!.id,
       revisedPrompt: parsed.data.revisedPrompt,
       itemsJson: JSON.stringify(parsed.data.items),
       shoppingCountry: parsed.data.shoppingCountry,
@@ -342,8 +349,15 @@ projectsRouter.post("/:id/versions", async (c) => {
   let sourceFile: StoredFile | null = null;
   let generatedFile: StoredFile | null = null;
   try {
-    sourceFile = await uploadImage(parsed.data.sourceImageDataUrl, `interi-source-${Date.now()}.jpg`);
-    generatedFile = await uploadImage(parsed.data.imageDataUrl, `interi-design-${Date.now()}.jpg`);
+    const uploadTimestamp = Date.now();
+    const [sourceUpload, generatedUpload] = await Promise.allSettled([
+      uploadImage(parsed.data.sourceImageDataUrl, `interi-source-${uploadTimestamp}.jpg`),
+      uploadImage(parsed.data.imageDataUrl, `interi-design-${uploadTimestamp}.jpg`),
+    ]);
+    if (sourceUpload.status === "fulfilled") sourceFile = sourceUpload.value;
+    if (generatedUpload.status === "fulfilled") generatedFile = generatedUpload.value;
+    if (sourceUpload.status === "rejected") throw sourceUpload.reason;
+    if (generatedUpload.status === "rejected") throw generatedUpload.reason;
 
     const versionId = parsed.data.clientRequestId ?? crypto.randomUUID();
     let createdVersion: VersionRecord | null = null;

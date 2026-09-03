@@ -49,6 +49,19 @@ foldersRouter.get("/", async (c) => {
   return c.json({ data: folders.map(serializeFolder) });
 });
 
+foldersRouter.get("/:id", async (c) => {
+  const user = c.get("user");
+  if (!user) return unauthorized(c);
+
+  const folder = await prisma.folder.findFirst({
+    where: { id: c.req.param("id"), userId: user.id },
+    include: { _count: { select: { projects: true } } },
+  });
+  if (!folder) return c.json({ error: { message: "Folder not found.", code: "NOT_FOUND" } }, 404);
+
+  return c.json({ data: serializeFolder(folder) });
+});
+
 foldersRouter.post("/", async (c) => {
   const user = c.get("user");
   if (!user) return unauthorized(c);
