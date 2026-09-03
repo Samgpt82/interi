@@ -32,7 +32,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="saved"
         options={{
-          title: 'Projects',
+          title: 'My Designs',
           tabBarButtonTestID: 'projects-tab',
           tabBarIcon: ({ color, focused }) => <Bookmark size={focused ? 24 : 22} color={color} strokeWidth={focused ? 2.2 : 1.8} />,
         }}
