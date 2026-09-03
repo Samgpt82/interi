@@ -19,6 +19,10 @@ The mobile app imports Lucide icons through `mobile/src/components/icons.ts`. Th
 
 Saved-project, version, and folder creation requests include a stable client request ID. Image uploads run in parallel to keep saves below gateway time limits. If a temporary 502, 503, or 504 interrupts the response after the database write succeeds, the mobile app looks up that exact record before retrying, so it reports the successful save instead of showing a false failure or creating a duplicate.
 
+## Membership access
+
+After the three included designs are used, the create flow checks the signed-in account's active RevenueCat entitlement or subscription before showing subscription options. Active subscribers continue directly to generation, while accounts without full access see the membership screen.
+
 ## Design assets
 
 The empty photo-upload card uses an interior photograph by Elvira Nisman, sourced from [Unsplash](https://unsplash.com/photos/minimalist-living-room-with-wooden-sideboard-aX1TTOuq83M).

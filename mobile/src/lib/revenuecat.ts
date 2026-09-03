@@ -36,7 +36,10 @@ async function configureRevenueCat(appUserID: string) {
 }
 
 export function hasFullAccess(customerInfo: CustomerInfo | null | undefined) {
-  return Boolean(customerInfo && Object.keys(customerInfo.entitlements.active).length > 0);
+  return Boolean(
+    customerInfo
+      && (Object.keys(customerInfo.entitlements.active).length > 0 || customerInfo.activeSubscriptions.length > 0)
+  );
 }
 
 export function getMembershipPlan(customerInfo: CustomerInfo | null | undefined): MembershipPlan {

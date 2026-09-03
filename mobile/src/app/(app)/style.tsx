@@ -7,8 +7,9 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput,
 
 import { PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
 import { useSession } from '@/lib/auth/use-session';
-import { DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
+import { checkDesignGenerationAccess, DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
 import { COLORS, ROOM_TYPES, STYLES, type DesignStyle, type RoomType } from '@/lib/interi';
+import { hasFullAccess, useRevenueCatCustomerInfo } from '@/lib/revenuecat';
 import { useGenerationStore } from '@/lib/state/generation-store';
 
 export default function StyleScreen() {
@@ -19,6 +20,9 @@ export default function StyleScreen() {
     queryFn: fetchDesignAccess,
     staleTime: 1000 * 15,
   });
+  const freeDesignsRemaining = designAccess.data?.freeDesignsRemaining;
+  const customerInfo = useRevenueCatCustomerInfo(freeDesignsRemaining === 0 ? session?.user.id : undefined);
+  const subscriptionActive = hasFullAccess(customerInfo.data);
   const style = useGenerationStore((state) => state.style);
   const roomType = useGenerationStore((state) => state.roomType);
   const direction = useGenerationStore((state) => state.direction);
@@ -31,15 +35,15 @@ export default function StyleScreen() {
   const access = useMutation({
     mutationFn: async () => {
       if (!session?.user.id) throw new Error('Sign in before composing a room.');
-      return fetchDesignAccess();
+      return checkDesignGenerationAccess(session.user.id);
     },
     onSuccess: (result) => {
-      queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, result);
-      if (result.freeDesignsRemaining === 0) {
+      queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, result.designAccess);
+      if (!result.accessGranted) {
         router.push({ pathname: '/subscription', params: { returnTo: 'generating' } });
         return;
       }
-      setAccessMode('free');
+      setAccessMode(result.accessMode);
       router.push('/generating');
     },
   });
@@ -55,12 +59,15 @@ export default function StyleScreen() {
   };
 
   const composeRoom = () => access.mutate();
-  const freeDesignsRemaining = designAccess.data?.freeDesignsRemaining;
   const accessMessage = freeDesignsRemaining === undefined
     ? 'Your first 3 room designs are free.'
     : freeDesignsRemaining > 0
       ? `${freeDesignsRemaining} free ${freeDesignsRemaining === 1 ? 'design' : 'designs'} remaining.`
-      : 'Your free designs are complete. A plan is needed for the next one.';
+      : customerInfo.isPending
+        ? 'Checking your full-access membership…'
+        : subscriptionActive
+          ? 'Full access is active.'
+          : 'Your free designs are complete. A plan is needed for the next one.';
 
   return (
     <Screen testID="style-screen">
