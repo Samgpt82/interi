@@ -141,7 +141,7 @@ export default function CreateScreen() {
         </View>
 
         <View className="mt-5">
-          <PrimaryButton label={processing ? 'Preparing image…' : 'Choose a direction'} onPress={() => router.push('/style')} disabled={!sourceUri || processing} loading={processing} testID="continue-to-style-button" />
+          <PrimaryButton label={processing ? 'Preparing image…' : 'Choose your style'} onPress={() => router.push('/style')} disabled={!sourceUri || processing} loading={processing} testID="continue-to-style-button" />
         </View>
       </ScrollView>
     </Screen>
