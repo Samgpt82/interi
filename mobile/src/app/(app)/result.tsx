@@ -34,6 +34,7 @@ export default function ResultScreen() {
   const result = useGenerationStore((state) => state.result);
   const projectId = useGenerationStore((state) => state.projectId);
   const projectTitle = useGenerationStore((state) => state.projectTitle);
+  const projectFolderId = useGenerationStore((state) => state.projectFolderId);
   const versions = useGenerationStore((state) => state.versions);
   const activeVersionId = useGenerationStore((state) => state.activeVersionId);
   const activeVersionNumber = useGenerationStore((state) => state.activeVersionNumber);
@@ -160,6 +161,11 @@ export default function ResultScreen() {
   const styleLabel = useMemo(() => STYLES.find((item) => item.id === style)?.label ?? style, [style]);
   const roomLabel = useMemo(() => ROOM_TYPES.find((item) => item.id === roomType)?.label ?? roomType, [roomType]);
   const selectedBase = useMemo(() => versions.find((version) => version.id === activeVersionId) ?? null, [activeVersionId, versions]);
+  const currentFolderName = useMemo(() => {
+    const savedProject = designs.find((project) => project.id === projectId);
+    if (savedProject) return savedProject.folder?.name ?? 'Unfiled';
+    return folders.find((folder) => folder.id === projectFolderId)?.name ?? 'Unfiled';
+  }, [designs, folders, projectFolderId, projectId]);
 
   if (!sourceImageDataUrl || !result) return <Screen testID="result-missing-state"><View className="flex-1 justify-center px-6"><Text className="text-3xl" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>Your next room starts with a photo.</Text><View className="mt-6"><PrimaryButton label="Create a design" onPress={() => router.replace('/')} testID="result-home-button" /></View></View></Screen>;
 
@@ -179,9 +185,9 @@ export default function ResultScreen() {
           refinement: pendingRefinement ?? undefined,
         });
         addVersion(version);
-        setNotice(`Saved as version ${version.number}.`);
+        setNotice(`Saved as version ${version.number} in ${currentFolderName}.`);
       } else {
-        setNotice(`Version ${activeVersionNumber ?? 1} is already saved.`);
+        setNotice(`Version ${activeVersionNumber ?? 1} is already saved in ${currentFolderName}.`);
       }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (caught) {
@@ -247,7 +253,7 @@ export default function ResultScreen() {
       loadProject(project, project.latestVersion.id);
       setSaveSheet(false);
       setCreatingProject(false);
-      setNotice('Created project and saved as version 1.');
+      setNotice(`Saved as version 1 in ${project.folder?.name ?? 'Unfiled'}.`);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (caught) {
       setSaveError(caught instanceof Error ? caught.message : 'Unable to create this project.');
@@ -270,7 +276,7 @@ export default function ResultScreen() {
       const project = await fetchProjectDetail(targetProjectId);
       loadProject(project, version.id);
       setSaveSheet(false);
-      setNotice(`Saved to ${title} as version ${version.number}.`);
+      setNotice(`Saved to ${title} as version ${version.number} in ${project.folder?.name ?? 'Unfiled'}.`);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (caught) {
       setSaveError(caught instanceof Error ? caught.message : 'Unable to save to this project.');
