@@ -372,12 +372,24 @@ export default function ResultScreen() {
                     style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper, color: COLORS.espresso }}
                   />
                   <Text className="mt-5 text-[11px] font-semibold uppercase tracking-[2px]" style={{ color: COLORS.oliveDark }}>Folder</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, paddingTop: 10, paddingRight: 20 }}>
+                  <View testID="new-project-folder-grid" className="mt-2.5 flex-row flex-wrap justify-between gap-y-2">
                     {[{ id: null, name: 'Unfiled' }, ...folders].map((folder) => {
                       const selected = newProjectFolderId === folder.id;
-                      return <Pressable key={folder.id ?? 'unfiled'} testID={`new-project-folder-${folder.id ?? 'unfiled'}`} disabled={creatingFolder} onPress={() => setNewProjectFolderId(folder.id)} className="min-h-11 flex-row items-center rounded-full border px-4" style={{ borderColor: selected ? COLORS.coral : COLORS.line, backgroundColor: selected ? '#FBE4DD' : COLORS.paper, opacity: creatingFolder ? 0.55 : 1 }}><Folder size={15} color={selected ? COLORS.coral : COLORS.oliveDark} /><Text className="ml-2 text-sm font-semibold" style={{ color: selected ? COLORS.coral : COLORS.espresso }}>{folder.name}</Text></Pressable>;
+                      return (
+                        <Pressable
+                          key={folder.id ?? 'unfiled'}
+                          testID={`new-project-folder-${folder.id ?? 'unfiled'}`}
+                          disabled={creatingFolder}
+                          onPress={() => setNewProjectFolderId(folder.id)}
+                          className="min-h-12 flex-row items-center rounded-2xl border px-3"
+                          style={{ width: '48.5%', borderColor: selected ? COLORS.coral : COLORS.line, backgroundColor: selected ? '#FBE4DD' : COLORS.paper, opacity: creatingFolder ? 0.55 : 1 }}>
+                          <Folder size={15} color={selected ? COLORS.coral : COLORS.oliveDark} />
+                          <Text numberOfLines={1} className="ml-2 flex-1 text-sm font-semibold" style={{ color: selected ? COLORS.coral : COLORS.espresso }}>{folder.name}</Text>
+                          {selected ? <Check size={15} color={COLORS.coral} /> : null}
+                        </Pressable>
+                      );
                     })}
-                  </ScrollView>
+                  </View>
                   {showNewFolderInput ? (
                     <View testID="new-folder-form" className="mt-3 flex-row items-center rounded-[20px] border p-1.5 pl-4" style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper }}>
                       <Folder size={17} color={COLORS.oliveDark} />

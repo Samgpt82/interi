@@ -27,7 +27,7 @@ After the three included designs are used, the create flow checks the signed-in 
 
 New room compositions use high-quality image generation with an automated visual quality check. Follow-up refinements keep the same high-quality image output but use a single bounded generation pass, avoiding extra review and regeneration cycles so small adjustments return much sooner.
 
-The room-type chooser uses a compact two-column grid, keeping every room option visible without horizontal swiping.
+The room-type chooser and the save flow's project-folder picker use compact two-column grids, keeping choices visible without horizontal swiping.
 
 ## Design assets
 
