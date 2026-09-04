@@ -27,6 +27,8 @@ After the three included designs are used, the create flow checks the signed-in 
 
 New room compositions use high-quality image generation with an automated visual quality check. Follow-up refinements keep the same high-quality image output but use a single bounded generation pass, avoiding extra review and regeneration cycles so small adjustments return much sooner.
 
+The room-type chooser uses a compact two-column grid, keeping every room option visible without horizontal swiping.
+
 ## Design assets
 
 The empty photo-upload card uses an interior photograph by Elvira Nisman, sourced from [Unsplash](https://unsplash.com/photos/minimalist-living-room-with-wooden-sideboard-aX1TTOuq83M).

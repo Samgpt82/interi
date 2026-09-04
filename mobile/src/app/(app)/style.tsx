@@ -107,16 +107,22 @@ export default function StyleScreen() {
           </View>
 
           <Text className="mt-9 text-[11px] font-semibold uppercase tracking-[2.5px]" style={{ color: COLORS.espresso }}>Room type</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, paddingTop: 12, paddingRight: 20 }}>
+          <View testID="room-type-grid" className="mt-3 flex-row flex-wrap justify-between gap-y-2">
             {ROOM_TYPES.map((item) => {
               const selected = roomType === item.id;
               return (
-                <Pressable key={item.id} testID={`room-${item.id}`} onPress={() => selectRoom(item.id)} className="min-h-11 justify-center rounded-full border px-4 active:opacity-70" style={{ borderColor: selected ? COLORS.oliveDark : COLORS.line, backgroundColor: selected ? COLORS.oliveDark : COLORS.paper }}>
-                  <Text className="text-sm" style={{ color: selected ? COLORS.white : COLORS.espresso }}>{item.label}</Text>
+                <Pressable
+                  key={item.id}
+                  testID={`room-${item.id}`}
+                  onPress={() => selectRoom(item.id)}
+                  className="min-h-12 flex-row items-center justify-between rounded-2xl border px-4 active:opacity-70"
+                  style={{ width: '48.5%', borderColor: selected ? COLORS.oliveDark : COLORS.line, backgroundColor: selected ? COLORS.oliveDark : COLORS.paper }}>
+                  <Text className="flex-1 text-sm" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={{ color: selected ? COLORS.white : COLORS.espresso }}>{item.label}</Text>
+                  {selected ? <Check size={15} color={COLORS.white} /> : null}
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </View>
 
           <Text className="mt-8 text-[11px] font-semibold uppercase tracking-[2.5px]" style={{ color: COLORS.espresso }}>Art direction <Text style={{ color: COLORS.olive }}>— optional</Text></Text>
           <TextInput
