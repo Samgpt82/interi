@@ -263,6 +263,8 @@ redesignRouter.post("/", async (c) => {
       idempotencyKey: crypto.randomUUID(),
       timeoutMs: 25_000,
       retryDelaysMs: [],
+      quality: "low",
+      validateQuality: false,
     });
     return c.json({ data });
   } catch (error) {
