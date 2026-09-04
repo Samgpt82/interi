@@ -120,7 +120,7 @@ export default function GeneratingScreen() {
           </Animated.View>
 
           <Text className="mt-10 text-center text-[34px] leading-[39px]" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>
-            Composing your room
+            Designing your room
           </Text>
           <Text testID="generation-progress-message" className="mt-3 max-w-[320px] text-center text-sm leading-6" style={{ color: COLORS.olive }}>
             {PROGRESS_MESSAGES[progressStage]}
