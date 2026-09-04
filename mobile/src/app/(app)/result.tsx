@@ -114,7 +114,7 @@ export default function ResultScreen() {
     mutationFn: async ({ request }: InventoryRequest) => api.post<DesignItem[]>('/api/redesign/items', {
       ...request,
       sourceImageDataUrl: await prepareImageForUpload(request.sourceImageDataUrl),
-    }),
+    }, { retryTransient: true }),
     onSuccess: (items, variables) => {
       setItems(variables.request.sourceImageDataUrl, items);
       if (variables.versionId) setVersionItems(variables.versionId, items);

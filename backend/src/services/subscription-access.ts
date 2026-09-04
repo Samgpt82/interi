@@ -3,7 +3,7 @@ import { env } from "../env";
 const REVENUECAT_TIMEOUT_MS = 10_000;
 const CACHE_TTL_MS = 60_000;
 const MAX_CACHE_ENTRIES = 1_000;
-const accessCache = new Map<string, { expiresAt: number }>();
+const accessCache = new Map<string, { active: boolean; expiresAt: number }>();
 let warnedAboutDevelopmentFallback = false;
 
 interface RevenueCatSubscriberResponse {
@@ -43,7 +43,7 @@ function cacheActiveAccess(userId: string): void {
     const oldestUserId = accessCache.keys().next().value as string | undefined;
     if (oldestUserId) accessCache.delete(oldestUserId);
   }
-  accessCache.set(userId, { expiresAt: now + CACHE_TTL_MS });
+  accessCache.set(userId, { active: true, expiresAt: now + CACHE_TTL_MS });
 }
 
 function hasActiveAccess(payload: RevenueCatSubscriberResponse): boolean {
@@ -73,7 +73,10 @@ export async function assertActiveSubscription(userId: string): Promise<void> {
   }
 
   const cached = accessCache.get(userId);
-  if (cached?.expiresAt && cached.expiresAt > Date.now()) return;
+  if (cached?.expiresAt && cached.expiresAt > Date.now()) {
+    if (cached.active) return;
+    throw new SubscriptionNotActiveError();
+  }
   if (cached) accessCache.delete(userId);
 
   let response: Response;

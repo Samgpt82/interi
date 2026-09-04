@@ -13,8 +13,9 @@ import {
 
 const IMAGE_ATTEMPT_TIMEOUT_MS = 150_000;
 const IMAGE_RETRY_DELAYS_MS = [1_000, 3_000];
-const INVENTORY_ATTEMPT_TIMEOUT_MS = 25_000;
+const INVENTORY_ATTEMPT_TIMEOUT_MS = 60_000;
 const INVENTORY_RETRY_DELAYS_MS: number[] = [];
+const INVENTORY_MODEL = "gpt-5-mini";
 const TRANSIENT_UPSTREAM_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
 
 const styleDescriptions: Record<RoomStyle, string> = {
@@ -196,6 +197,23 @@ export function normalizeRedesignError(error: unknown): RedesignServiceError {
   );
 }
 
+function normalizeInventoryError(error: unknown): RedesignServiceError {
+  if (error instanceof RedesignServiceError) return error;
+  const name = error instanceof Error ? error.name : "";
+  if (name === "TimeoutError" || name === "AbortError") {
+    return new RedesignServiceError(
+      "Finding shopping details is taking longer than expected. Please try again.",
+      "INVENTORY_SERVICE_TIMEOUT",
+      true
+    );
+  }
+  return new RedesignServiceError(
+    "Shopping details are temporarily unavailable.",
+    "INVENTORY_SERVICE_UNAVAILABLE",
+    true
+  );
+}
+
 function createInteriorPrompt(request: RedesignRoomRequest): string {
   const refinement = request.refinement
     ? `Honor this additional direction: ${request.refinement}.`
@@ -367,7 +385,7 @@ function extractInventoryText(result: OpenAIInventoryResponse): string | undefin
 async function requestInventory(request: DesignInventoryRequest): Promise<OpenAIInventoryResponse> {
   const market = shoppingMarkets[request.shoppingCountry];
   const requestBody = JSON.stringify({
-    model: "gpt-5.2",
+    model: INVENTORY_MODEL,
     input: [
       {
         role: "user",
@@ -382,7 +400,7 @@ async function requestInventory(request: DesignInventoryRequest): Promise<OpenAI
               "The description should explain the item's placement or role in one short sentence. Choose one fitting emoji for each item.",
             ].join(" "),
           },
-          { type: "input_image", image_url: request.sourceImageDataUrl },
+          { type: "input_image", image_url: request.sourceImageDataUrl, detail: "low" },
         ],
       },
     ],
@@ -420,7 +438,7 @@ async function requestInventory(request: DesignInventoryRequest): Promise<OpenAI
         retryable
       );
     } catch (error) {
-      lastError = normalizeRedesignError(error);
+      lastError = normalizeInventoryError(error);
       console.error("OpenAI inventory request failed", error);
     }
 
