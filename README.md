@@ -25,7 +25,7 @@ After the three included designs are used, the create flow checks the signed-in 
 
 ## Design generation
 
-New room designs use high-quality image generation with an automated visual quality check. While a design is being created, the progress screen clearly says “Designing your room.” Follow-up refinements keep the same high-quality image output but use a single bounded generation pass, avoiding extra review and regeneration cycles so small adjustments return much sooner.
+New room designs use high-quality image generation with an automated visual quality check. While a design is being created, the progress screen uses friendly status text such as “Designing your room” and “Choosing materials and furniture…”. Follow-up refinements keep the same high-quality image output but use a single bounded generation pass, avoiding extra review and regeneration cycles so small adjustments return much sooner.
 
 The room-type chooser and the save flow's project-folder picker use compact two-column grids, keeping choices visible without horizontal swiping.
 

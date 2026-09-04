@@ -16,7 +16,7 @@ import { usePreferencesStore } from '@/lib/state/preferences-store';
 
 const PROGRESS_MESSAGES = [
   'Preparing the composition…',
-  'Rendering materials and furniture…',
+  'Choosing materials and furniture…',
   'Balancing light and proportion…',
   'Finishing the details — your design is still safely processing…',
 ] as const;
