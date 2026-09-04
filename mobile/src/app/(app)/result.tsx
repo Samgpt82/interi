@@ -377,7 +377,6 @@ export default function ResultScreen() {
                       const selected = newProjectFolderId === folder.id;
                       return <Pressable key={folder.id ?? 'unfiled'} testID={`new-project-folder-${folder.id ?? 'unfiled'}`} disabled={creatingFolder} onPress={() => setNewProjectFolderId(folder.id)} className="min-h-11 flex-row items-center rounded-full border px-4" style={{ borderColor: selected ? COLORS.coral : COLORS.line, backgroundColor: selected ? '#FBE4DD' : COLORS.paper, opacity: creatingFolder ? 0.55 : 1 }}><Folder size={15} color={selected ? COLORS.coral : COLORS.oliveDark} /><Text className="ml-2 text-sm font-semibold" style={{ color: selected ? COLORS.coral : COLORS.espresso }}>{folder.name}</Text></Pressable>;
                     })}
-                    <Pressable testID="show-new-folder-input-button" disabled={creatingFolder} onPress={() => { setShowNewFolderInput(true); setSaveError(null); }} className="min-h-11 flex-row items-center rounded-full border px-4" style={{ borderColor: COLORS.espresso, backgroundColor: COLORS.espresso, opacity: creatingFolder ? 0.55 : 1 }}><Plus size={15} color={COLORS.white} /><Text className="ml-2 text-sm font-semibold" style={{ color: COLORS.white }}>New folder</Text></Pressable>
                   </ScrollView>
                   {showNewFolderInput ? (
                     <View testID="new-folder-form" className="mt-3 flex-row items-center rounded-[20px] border p-1.5 pl-4" style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper }}>
@@ -400,8 +399,13 @@ export default function ResultScreen() {
                       </Pressable>
                       <Pressable testID="cancel-new-folder-button" disabled={creatingFolder} onPress={() => { setShowNewFolderInput(false); setNewFolderName(''); setSaveError(null); }} className="ml-1 h-11 w-11 items-center justify-center rounded-2xl"><X size={17} color={COLORS.oliveDark} /></Pressable>
                     </View>
-                  ) : null}
-                  <View className="mt-6"><PrimaryButton label="Create project & save" onPress={() => void createNewProject()} disabled={!newProjectTitle.trim() || creatingFolder} loading={saving} testID="create-project-and-save-button" /></View>
+                  ) : (
+                    <Pressable testID="show-new-folder-input-button" disabled={creatingFolder} onPress={() => { setShowNewFolderInput(true); setSaveError(null); }} className="mt-3 min-h-12 flex-row items-center justify-center rounded-2xl border active:opacity-70" style={{ borderColor: COLORS.coral, backgroundColor: '#FFF7F2', opacity: creatingFolder ? 0.55 : 1 }}>
+                      <View className="h-7 w-7 items-center justify-center rounded-full" style={{ backgroundColor: '#FBE4DD' }}><Plus size={15} color={COLORS.coral} /></View>
+                      <Text className="ml-2 text-sm font-semibold" style={{ color: COLORS.coral }}>New folder</Text>
+                    </Pressable>
+                  )}
+                  <View className="mt-3"><PrimaryButton label="Create project & save" onPress={() => void createNewProject()} disabled={!newProjectTitle.trim() || creatingFolder} loading={saving} testID="create-project-and-save-button" /></View>
                   <Pressable testID="back-to-project-list-button" disabled={saving || creatingFolder} onPress={() => { setCreatingProject(false); setShowNewFolderInput(false); setNewFolderName(''); }} className="mt-2 min-h-11 items-center justify-center"><Text className="text-sm font-semibold" style={{ color: COLORS.oliveDark }}>Back to projects</Text></Pressable>
                 </View>
               ) : (
