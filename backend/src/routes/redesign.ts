@@ -1,340 +1,76 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { bodyLimit } from "hono/body-limit";
 
 import type { AppEnv } from "../auth";
-import { env } from "../env";
 import { claimFreeDesign, getDesignAccess, releaseFreeDesign } from "../lib/design-access";
+import { imageDataUrlToFile } from "../lib/image-data";
 import {
   designInventoryRequestSchema,
-  designInventorySchema,
+  redesignJobRequestSchema,
   redesignRoomRequestSchema,
   SUBSCRIPTION_REQUIRED_ERROR_CODE,
   type DesignAccessResponse,
-  type DesignInventoryRequest,
-  type DesignItem,
-  type RedesignRoomRequest,
-  type RedesignRoomResult,
-  type RoomStyle,
-  type RoomType,
-  type ShoppingCountry,
 } from "../types";
+import {
+  generateRedesign,
+  identifyDesignItems,
+  normalizeRedesignError,
+} from "../services/redesign-generation";
+import {
+  createRedesignJob,
+  ensureRedesignJobProcessing,
+  findRedesignJobByClientRequestId,
+  findRedesignJobForUser,
+  getRedesignRequestFingerprint,
+  RedesignRequestConflictError,
+  resumeRedesignJobIfNeeded,
+  serializeRedesignJob,
+  SubscriptionRequiredError,
+} from "../services/redesign-jobs";
+import {
+  assertActiveSubscription,
+  SubscriptionNotActiveError,
+  SubscriptionVerificationError,
+} from "../services/subscription-access";
 
 const redesignRouter = new Hono<AppEnv>();
 
-const styleDescriptions: Record<RoomStyle, string> = {
-  "warm-minimal":
-    "warm minimalism with restrained forms, natural oak, soft plaster, tactile neutral textiles, and calm layered lighting",
-  japandi:
-    "refined Japandi design blending Japanese simplicity with Scandinavian warmth, low-profile furnishings, pale woods, and handcrafted texture",
-  "modern-organic":
-    "modern organic design with sculptural silhouettes, rounded forms, natural stone, warm wood, linen, and softly tonal colors",
-  "mid-century":
-    "elevated mid-century modern design with clean lines, walnut accents, iconic proportions, warm earth tones, and selective vintage character",
-  "quiet-luxury":
-    "quiet luxury with exceptional materials, tailored upholstery, subtle stone and metal details, elegant restraint, and sophisticated tonal layering",
-  coastal:
-    "upscale contemporary coastal design with airy natural textures, sun-washed neutrals, light woods, linen, and understated ocean-inspired accents",
-  scandinavian:
-    "light and functional Scandinavian design with pale woods, clean lines, soft neutral textiles, practical storage, and warm natural light",
-  modern:
-    "sleek contemporary modern design with crisp architectural lines, refined furniture, balanced contrast, and polished uncluttered finishes",
-  minimalist:
-    "calm minimalist design with purposeful furnishings, generous negative space, restrained colors, concealed storage, and impeccable proportions",
-  industrial:
-    "refined industrial design with raw concrete, blackened metal, aged wood, exposed details, urban character, and warm layered lighting",
-  luxury:
-    "opulent luxury design with statement lighting, rich stone, premium fabrics, elegant metal accents, bespoke furniture, and refined finishes",
-  bohemian:
-    "collected bohemian design with layered textiles, artisan objects, warm woods, natural fibers, expressive pattern, plants, and relaxed character",
-};
+redesignRouter.use(
+  "*",
+  bodyLimit({
+    maxSize: 18 * 1024 * 1024,
+    onError: (c) => c.json(
+      { error: { message: "The room image is too large.", code: "PAYLOAD_TOO_LARGE" } },
+      413
+    ),
+  })
+);
 
-const styleSummaryDetails: Record<RoomStyle, string> = {
-  "warm-minimal": "soft neutral textiles, natural oak, and calm layered light",
-  japandi: "low-profile forms, pale woods, and handcrafted texture",
-  "modern-organic": "sculptural silhouettes, warm wood, linen, and natural stone",
-  "mid-century": "tailored shapes, walnut accents, and warm earth tones",
-  "quiet-luxury": "tailored upholstery, refined materials, and subtle tonal layers",
-  coastal: "airy linens, light woods, and sun-washed natural tones",
-  scandinavian: "clean lines, pale woods, practical storage, and warm light",
-  modern: "crisp lines, balanced contrast, and polished uncluttered finishes",
-  minimalist: "purposeful furnishings, restrained colour, and generous open space",
-  industrial: "aged wood, blackened metal, raw texture, and warm layered lighting",
-  luxury: "statement lighting, premium fabrics, rich stone, and elegant metal accents",
-  bohemian: "layered textiles, artisan objects, warm woods, and expressive pattern",
-};
-
-const roomNames: Record<RoomType, string> = {
-  "living-room": "living room",
-  bedroom: "bedroom",
-  kitchen: "kitchen",
-  "dining-room": "dining room",
-  "home-office": "home office",
-  bathroom: "bathroom",
-  "children-room": "children's room",
-};
-
-const shoppingMarkets: Record<ShoppingCountry, { country: string; priceGuidance: string }> = {
-  SE: {
-    country: "Sweden",
-    priceGuidance: "realistic broad Swedish price ranges in SEK, formatted like 3 000–7 000 kr",
-  },
-  GB: {
-    country: "the United Kingdom",
-    priceGuidance: "realistic broad UK price ranges in GBP, formatted like £300–£700",
-  },
-};
-
-interface OpenAIImageEditResponse {
-  data?: Array<{
-    b64_json?: string;
-    url?: string;
-  }>;
-  error?: {
-    message?: string;
-  };
+function unauthorized(c: Context<AppEnv>, message: string) {
+  return c.json({ error: { message, code: "UNAUTHORIZED" } }, 401);
 }
 
-interface OpenAIInventoryResponse {
-  output_text?: string;
-  output?: Array<{
-    content?: Array<{
-      type?: string;
-      text?: string;
-    }>;
-  }>;
-}
-
-const inventoryJsonSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["items"],
-  properties: {
-    items: {
-      type: "array",
-      minItems: 4,
-      maxItems: 7,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: [
-          "id",
-          "emoji",
-          "name",
-          "color",
-          "material",
-          "description",
-          "priceRange",
-          "searchTerms",
-          "colorOptions",
-          "swapSuggestions",
-        ],
-        properties: {
-          id: { type: "string" },
-          emoji: { type: "string" },
-          name: { type: "string" },
-          color: { type: "string" },
-          material: { type: "string" },
-          description: { type: "string" },
-          priceRange: { type: "string" },
-          searchTerms: { type: "string" },
-          colorOptions: {
-            type: "array",
-            minItems: 3,
-            maxItems: 5,
-            items: {
-              type: "object",
-              additionalProperties: false,
-              required: ["name", "hex"],
-              properties: {
-                name: { type: "string" },
-                hex: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
-              },
-            },
-          },
-          swapSuggestions: {
-            type: "array",
-            minItems: 3,
-            maxItems: 3,
-            items: { type: "string" },
-          },
-        },
-      },
-    },
-  },
-} as const;
-
-function createInteriorPrompt(request: RedesignRoomRequest): string {
-  const refinement = request.refinement
-    ? `Honor this additional direction: ${request.refinement}.`
-    : "";
-
-  return [
-    `Redesign this ${roomNames[request.roomType]} as a highly realistic, editorial-quality interior in ${styleDescriptions[request.style]}.`,
-    "Preserve the room's architecture exactly: keep the existing floor plan, room dimensions, walls, ceiling geometry, windows, doors, openings, columns, fixed built-ins, and all structural elements in their original locations.",
-    "Maintain the source image's camera position, perspective, focal length, composition, crop, and natural light direction.",
-    "Transform only the interior design through coherent furniture, lighting fixtures, decor, surface finishes, textiles, and a sophisticated material palette appropriate to the room's function.",
-    "Use believable scale, accurate geometry, physically plausible lighting and shadows, refined styling, and premium real-world materials. Avoid warped lines, duplicated objects, impossible reflections, visual clutter, text, logos, people, and architectural changes.",
-    refinement,
-    "The final result should look like a professionally photographed, buildable interior rather than a CGI concept.",
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
-
-function createDesignSummary(request: RedesignRoomRequest): string {
-  return `A considered ${request.style.replaceAll("-", " ")} ${roomNames[request.roomType]} with ${styleSummaryDetails[request.style]}. The room's architecture and perspective remain intact while furniture, finishes, and lighting form a cohesive new composition.`;
-}
-
-function dataUrlToFile(dataUrl: string): File | null {
-  const match = dataUrl.match(
-    /^data:(image\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/=\r\n]+)$/
-  );
-  if (!match) return null;
-
-  const mimeType = match[1];
-  const base64 = match[2]?.replace(/\s/g, "");
-  if (!mimeType || !base64) return null;
-
+async function parseJson(c: Context<AppEnv>): Promise<{ value: unknown } | { response: Response }> {
   try {
-    const bytes = Buffer.from(base64, "base64");
-    if (bytes.length === 0) return null;
-
-    const extension = mimeType === "image/jpeg" || mimeType === "image/jpg" ? "jpg" : mimeType.split("/")[1];
-    return new File([bytes], `room.${extension}`, { type: mimeType });
+    return { value: await c.req.json() };
   } catch {
-    return null;
+    return {
+      response: c.json(
+        { error: { message: "Request body must be valid JSON", code: "INVALID_JSON" } },
+        400
+      ),
+    };
   }
-}
-
-async function readOpenAIResponse(response: Response): Promise<OpenAIImageEditResponse> {
-  try {
-    return (await response.json()) as OpenAIImageEditResponse;
-  } catch {
-    return {};
-  }
-}
-
-function createImageEditForm(imageFile: File, prompt: string): FormData {
-  const formData = new FormData();
-  formData.append("image", imageFile);
-  formData.append("model", "gpt-image-1");
-  formData.append("prompt", prompt);
-  formData.append("n", "1");
-  formData.append("size", "auto");
-  formData.append("quality", "low");
-  formData.append("output_format", "jpeg");
-  formData.append("output_compression", "82");
-  formData.append("input_fidelity", "high");
-  return formData;
-}
-
-async function requestImageEdit(imageFile: File, prompt: string): Promise<Response> {
-  return fetch("https://api.openai.com/v1/images/edits", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },
-    body: createImageEditForm(imageFile, prompt),
-    signal: AbortSignal.timeout(25_000),
-  });
-}
-
-function extractInventoryText(result: OpenAIInventoryResponse): string | undefined {
-  if (result.output_text) return result.output_text;
-  return result.output
-    ?.flatMap((output) => output.content ?? [])
-    .find((content) => content.type === "output_text" && content.text)
-    ?.text;
-}
-
-async function identifyDesignItems(
-  imageDataUrl: string,
-  request: DesignInventoryRequest
-): Promise<DesignItem[]> {
-  const market = shoppingMarkets[request.shoppingCountry];
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-5.2",
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: [
-                `Create a concise shopping inventory for the main visible furniture, lighting, textiles, and decor in this redesigned ${roomNames[request.roomType]}.`,
-                `The design style is ${styleDescriptions[request.style]}.`,
-                "Return 4 to 7 distinct, prominent items. Describe what is actually visible, without claiming an exact brand or model.",
-                `The user shops in ${market.country}. Use short useful names, ${market.priceGuidance}, retailer-friendly search terms suitable for that market, accessible color hex values, and exactly three genuinely different swap suggestions.`,
-                "The description should explain the item's placement or role in one short sentence. Choose one fitting emoji for each item.",
-              ].join(" "),
-            },
-            { type: "input_image", image_url: imageDataUrl },
-          ],
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "design_inventory",
-          strict: true,
-          schema: inventoryJsonSchema,
-        },
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-    console.error("OpenAI inventory analysis failed", response.status, message.slice(0, 500));
-    throw new Error(`Inventory analysis failed (${response.status})`);
-  }
-
-  const result = (await response.json()) as OpenAIInventoryResponse;
-  const text = extractInventoryText(result);
-  if (!text) {
-    console.error("OpenAI inventory response contained no output text");
-    throw new Error("Inventory analysis returned no output");
-  }
-
-  let json: unknown;
-  try {
-    json = JSON.parse(text);
-  } catch (error) {
-    console.error("OpenAI inventory response was invalid JSON", error);
-    throw error;
-  }
-
-  const parsed = designInventorySchema.safeParse(json);
-  if (!parsed.success) {
-    console.error("OpenAI inventory response failed validation", parsed.error.issues);
-    throw new Error("Inventory analysis returned invalid items");
-  }
-  return parsed.data.items;
 }
 
 redesignRouter.post("/items", async (c) => {
   const user = c.get("user");
-  if (!user) {
-    return c.json(
-      { error: { message: "Please sign in to view design items.", code: "UNAUTHORIZED" } },
-      401
-    );
-  }
+  if (!user) return unauthorized(c, "Please sign in to view design items.");
 
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json(
-      { error: { message: "Request body must be valid JSON", code: "INVALID_JSON" } },
-      400
-    );
-  }
+  const parsedBody = await parseJson(c);
+  if ("response" in parsedBody) return parsedBody.response;
 
-  const parsed = designInventoryRequestSchema.safeParse(body);
+  const parsed = designInventoryRequestSchema.safeParse(parsedBody.value);
   if (!parsed.success) {
     return c.json(
       {
@@ -348,42 +84,27 @@ redesignRouter.post("/items", async (c) => {
   }
 
   try {
-    const items = await identifyDesignItems(parsed.data.sourceImageDataUrl, parsed.data);
+    const items = await identifyDesignItems(parsed.data);
     return c.json({ data: items });
   } catch (error) {
+    const serviceError = normalizeRedesignError(error);
     console.error("Unexpected design inventory error", error);
+    c.header("Retry-After", "5");
     return c.json(
-      {
-        error: {
-          message: "Shopping details are temporarily unavailable",
-          code: "INVENTORY_SERVICE_UNAVAILABLE",
-        },
-      },
-      502
+      { error: { message: serviceError.message, code: serviceError.code } },
+      503
     );
   }
 });
 
-redesignRouter.post("/", async (c) => {
+redesignRouter.post("/jobs", async (c) => {
   const user = c.get("user");
-  if (!user) {
-    return c.json(
-      { error: { message: "Please sign in to create room designs.", code: "UNAUTHORIZED" } },
-      401
-    );
-  }
+  if (!user) return unauthorized(c, "Please sign in to create room designs.");
 
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json(
-      { error: { message: "Request body must be valid JSON", code: "INVALID_JSON" } },
-      400
-    );
-  }
+  const parsedBody = await parseJson(c);
+  if ("response" in parsedBody) return parsedBody.response;
 
-  const parsed = redesignRoomRequestSchema.safeParse(body);
+  const parsed = redesignJobRequestSchema.safeParse(parsedBody.value);
   if (!parsed.success) {
     return c.json(
       {
@@ -396,7 +117,104 @@ redesignRouter.post("/", async (c) => {
     );
   }
 
-  const imageFile = dataUrlToFile(parsed.data.sourceImageDataUrl);
+  try {
+    const requestFingerprint = getRedesignRequestFingerprint(parsed.data);
+    const existing = await findRedesignJobByClientRequestId(parsed.data.clientRequestId, user.id);
+    if (existing) {
+      if (existing.requestFingerprint !== requestFingerprint) throw new RedesignRequestConflictError();
+      resumeRedesignJobIfNeeded(existing);
+      return c.json({ data: serializeRedesignJob(existing) });
+    }
+
+    if (parsed.data.accessMode === "subscription") await assertActiveSubscription(user.id);
+    const { job, created } = await createRedesignJob(user.id, parsed.data);
+    if (created) ensureRedesignJobProcessing(job.id);
+    else resumeRedesignJobIfNeeded(job);
+
+    c.header("Location", `/api/redesign/jobs/${job.id}`);
+    if (job.status === "queued" || job.status === "processing") c.header("Retry-After", "2");
+    return c.json({ data: serializeRedesignJob(job) }, created ? 202 : 200);
+  } catch (error) {
+    if (error instanceof RedesignRequestConflictError) {
+      return c.json(
+        { error: { message: error.message, code: "IDEMPOTENCY_CONFLICT" } },
+        409
+      );
+    }
+    if (error instanceof SubscriptionRequiredError || error instanceof SubscriptionNotActiveError) {
+      return c.json(
+        {
+          error: {
+            message: error.message,
+            code: SUBSCRIPTION_REQUIRED_ERROR_CODE,
+          },
+        },
+        402
+      );
+    }
+    if (error instanceof SubscriptionVerificationError) {
+      c.header("Retry-After", "10");
+      return c.json(
+        { error: { message: error.message, code: "SUBSCRIPTION_CHECK_FAILED" } },
+        503
+      );
+    }
+
+    console.error("Unable to create redesign job", error);
+    c.header("Retry-After", "5");
+    return c.json(
+      {
+        error: {
+          message: "Unable to start the redesign right now. Please try again.",
+          code: "JOB_CREATE_FAILED",
+        },
+      },
+      503
+    );
+  }
+});
+
+redesignRouter.get("/jobs/:id", async (c) => {
+  const user = c.get("user");
+  if (!user) return unauthorized(c, "Please sign in to view room designs.");
+
+  const job = await findRedesignJobForUser(c.req.param("id"), user.id);
+  if (!job) {
+    return c.json(
+      { error: { message: "This redesign could not be found.", code: "JOB_NOT_FOUND" } },
+      404
+    );
+  }
+
+  resumeRedesignJobIfNeeded(job);
+  c.header("Cache-Control", "no-store");
+  if (job.status === "queued" || job.status === "processing") c.header("Retry-After", "2");
+  return c.json({ data: serializeRedesignJob(job) });
+});
+
+// Compatibility for already-installed app builds. This path keeps its original
+// short timeout; current builds use durable jobs and polling instead.
+redesignRouter.post("/", async (c) => {
+  const user = c.get("user");
+  if (!user) return unauthorized(c, "Please sign in to create room designs.");
+
+  const parsedBody = await parseJson(c);
+  if ("response" in parsedBody) return parsedBody.response;
+
+  const parsed = redesignRoomRequestSchema.safeParse(parsedBody.value);
+  if (!parsed.success) {
+    return c.json(
+      {
+        error: {
+          message: parsed.error.issues[0]?.message ?? "Invalid redesign request",
+          code: "INVALID_REQUEST",
+        },
+      },
+      400
+    );
+  }
+
+  const imageFile = imageDataUrlToFile(parsed.data.sourceImageDataUrl);
   if (!imageFile) {
     return c.json(
       { error: { message: "The room image could not be decoded", code: "INVALID_IMAGE" } },
@@ -407,6 +225,7 @@ redesignRouter.post("/", async (c) => {
   let designAccess: DesignAccessResponse;
   let claimedFreeDesign = false;
   try {
+    if (parsed.data.accessMode === "subscription") await assertActiveSubscription(user.id);
     if (parsed.data.accessMode === "free") {
       const claimedAccess = await claimFreeDesign(user.id);
       if (!claimedAccess) {
@@ -426,6 +245,12 @@ redesignRouter.post("/", async (c) => {
       designAccess = await getDesignAccess(user.id);
     }
   } catch (error) {
+    if (error instanceof SubscriptionNotActiveError) {
+      return c.json(
+        { error: { message: error.message, code: SUBSCRIPTION_REQUIRED_ERROR_CODE } },
+        402
+      );
+    }
     console.error("Unable to reserve design access", error);
     return c.json(
       { error: { message: "Unable to check design access right now.", code: "ACCESS_CHECK_FAILED" } },
@@ -433,84 +258,27 @@ redesignRouter.post("/", async (c) => {
     );
   }
 
-  const releaseClaim = async () => {
-    if (!claimedFreeDesign) return;
-    claimedFreeDesign = false;
-    try {
-      await releaseFreeDesign(user.id);
-    } catch (error) {
-      console.error("Unable to restore free design credit", error);
-    }
-  };
-
-  const imagePrompt = createInteriorPrompt(parsed.data);
-  const revisedPrompt = createDesignSummary(parsed.data);
-
   try {
-    const response = await requestImageEdit(imageFile, imagePrompt);
-    const result = await readOpenAIResponse(response);
-
-    if (!response.ok) {
-      console.error("OpenAI image edit failed", response.status, result.error?.message);
-      await releaseClaim();
-      return c.json(
-        {
-          error: {
-            message: "The image redesign service could not complete the request",
-            code: "IMAGE_EDIT_FAILED",
-          },
-        },
-        502
-      );
-    }
-
-    const image = result.data?.[0];
-    let imageDataUrl: string | undefined;
-
-    if (image?.b64_json) {
-      imageDataUrl = `data:image/jpeg;base64,${image.b64_json}`;
-    } else if (image?.url) {
-      const imageResponse = await fetch(image.url);
-      if (imageResponse.ok) {
-        const contentType = imageResponse.headers.get("content-type") ?? "image/png";
-        const imageBytes = Buffer.from(await imageResponse.arrayBuffer());
-        imageDataUrl = `data:${contentType};base64,${imageBytes.toString("base64")}`;
-      }
-    }
-
-    if (!imageDataUrl) {
-      console.error("OpenAI image edit returned no usable image");
-      await releaseClaim();
-      return c.json(
-        {
-          error: {
-            message: "The image redesign service returned an invalid result",
-            code: "INVALID_IMAGE_RESULT",
-          },
-        },
-        502
-      );
-    }
-
-    const data: RedesignRoomResult = {
-      imageDataUrl,
-      revisedPrompt,
-      items: [],
-      shoppingCountry: parsed.data.shoppingCountry,
-      designAccess,
-    };
+    const data = await generateRedesign(parsed.data, imageFile, designAccess, {
+      idempotencyKey: crypto.randomUUID(),
+      timeoutMs: 25_000,
+      retryDelaysMs: [],
+    });
     return c.json({ data });
   } catch (error) {
-    await releaseClaim();
+    if (claimedFreeDesign) {
+      try {
+        await releaseFreeDesign(user.id);
+      } catch (releaseError) {
+        console.error("Unable to restore free design credit", releaseError);
+      }
+    }
+    const serviceError = normalizeRedesignError(error);
     console.error("Unexpected redesign error", error);
+    c.header("Retry-After", "5");
     return c.json(
-      {
-        error: {
-          message: "The image redesign service is temporarily unavailable",
-          code: "IMAGE_SERVICE_UNAVAILABLE",
-        },
-      },
-      502
+      { error: { message: serviceError.message, code: serviceError.code } },
+      serviceError.retryable ? 503 : 422
     );
   }
 });

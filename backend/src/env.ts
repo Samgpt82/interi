@@ -16,6 +16,10 @@ const envSchema = z.object({
 
   // AI services
   OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
+
+  // Subscription verification (required when NODE_ENV=production)
+  REVENUECAT_SECRET_API_KEY: z.string().min(1).optional(),
+  REVENUECAT_ENTITLEMENT_ID: z.string().min(1).optional(),
 });
 
 /**

@@ -18,11 +18,15 @@ interface GenerationState {
   activeVersionNumber: number | null;
   dirty: boolean;
   pendingRefinement: string | null;
+  generationClientRequestId: string | null;
+  refinementClientRequestId: string | null;
   setSource: (dataUrl: string, uri: string) => void;
   setStyle: (style: DesignStyle) => void;
   setRoomType: (roomType: RoomType) => void;
   setDirection: (direction: string) => void;
   setAccessMode: (accessMode: DesignAccessMode) => void;
+  setGenerationClientRequestId: (clientRequestId: string | null) => void;
+  setRefinementClientRequestId: (clientRequestId: string | null) => void;
   setResult: (result: RedesignResponse, options?: { dirty?: boolean; refinement?: string | null }) => void;
   setItems: (imageDataUrl: string, items: DesignItem[]) => void;
   setVersionItems: (versionId: string, items: DesignItem[]) => void;
@@ -51,6 +55,8 @@ const initialState = {
   activeVersionNumber: null,
   dirty: false,
   pendingRefinement: null,
+  generationClientRequestId: null,
+  refinementClientRequestId: null,
 };
 
 function resultFromVersion(version: ProjectVersionResponse): RedesignResponse {
@@ -64,6 +70,8 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   setRoomType: (roomType) => set({ roomType }),
   setDirection: (direction) => set({ direction }),
   setAccessMode: (accessMode) => set({ accessMode }),
+  setGenerationClientRequestId: (generationClientRequestId) => set({ generationClientRequestId }),
+  setRefinementClientRequestId: (refinementClientRequestId) => set({ refinementClientRequestId }),
   setResult: (result, options) => set({ result, dirty: options?.dirty ?? get().dirty, pendingRefinement: options?.refinement ?? null }),
   setItems: (imageDataUrl, items) => set((state) => state.result?.imageDataUrl === imageDataUrl
     ? { result: { ...state.result, items } }
@@ -92,6 +100,8 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       activeVersionNumber: selected.number,
       dirty: false,
       pendingRefinement: null,
+      generationClientRequestId: null,
+      refinementClientRequestId: null,
     });
   },
   selectVersion: (versionId) => {
@@ -107,6 +117,8 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       activeVersionNumber: version.number,
       dirty: false,
       pendingRefinement: null,
+      generationClientRequestId: null,
+      refinementClientRequestId: null,
     });
   },
   addVersion: (version) => set((state) => ({

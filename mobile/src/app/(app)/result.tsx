@@ -13,7 +13,8 @@ import { api, isApiError } from '@/lib/api/api';
 import { useSession } from '@/lib/auth/use-session';
 import { authorizeDesignGeneration, DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
 import { prepareImageForUpload, saveImageToLibrary, shareImage } from '@/lib/image-utils';
-import { COLORS, ROOM_TYPES, STYLES, SUBSCRIPTION_REQUIRED_ERROR_CODE, type DesignInventoryRequest, type DesignItem, type ProjectVersionResponse, type RedesignRequest, type RedesignResponse, type UpdateProjectVersionItemsRequest } from '@/lib/interi';
+import { COLORS, ROOM_TYPES, STYLES, SUBSCRIPTION_REQUIRED_ERROR_CODE, type DesignInventoryRequest, type DesignItem, type ProjectVersionResponse, type RedesignRequest, type UpdateProjectVersionItemsRequest } from '@/lib/interi';
+import { createRedesign, createRedesignRequestId, RedesignJobFailedError } from '@/lib/redesign';
 import { useGenerationStore } from '@/lib/state/generation-store';
 import { useSavedDesigns } from '@/lib/state/saved-designs-context';
 
@@ -40,6 +41,8 @@ export default function ResultScreen() {
   const activeVersionNumber = useGenerationStore((state) => state.activeVersionNumber);
   const dirty = useGenerationStore((state) => state.dirty);
   const pendingRefinement = useGenerationStore((state) => state.pendingRefinement);
+  const refinementClientRequestId = useGenerationStore((state) => state.refinementClientRequestId);
+  const setRefinementClientRequestId = useGenerationStore((state) => state.setRefinementClientRequestId);
   const setResult = useGenerationStore((state) => state.setResult);
   const setItems = useGenerationStore((state) => state.setItems);
   const setVersionItems = useGenerationStore((state) => state.setVersionItems);
@@ -64,8 +67,13 @@ export default function ResultScreen() {
   const [creatingFolder, setCreatingFolder] = useState<boolean>(false);
 
   const mutation = useMutation({
-    mutationFn: async (request: RedesignRequest) => api.post<RedesignResponse>('/api/redesign', { ...request, sourceImageDataUrl: await prepareImageForUpload(request.sourceImageDataUrl) }),
+    mutationFn: (request: RedesignRequest) => {
+      const requestId = refinementClientRequestId ?? createRedesignRequestId();
+      if (!refinementClientRequestId) setRefinementClientRequestId(requestId);
+      return createRedesign(request, requestId);
+    },
     onSuccess: (data, variables) => {
+      setRefinementClientRequestId(null);
       if (data.designAccess) queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, data.designAccess);
       setResult(data, { dirty: true, refinement: variables.refinement ?? null });
       setNotice('Refinement ready — save it as a new version.');
@@ -73,6 +81,7 @@ export default function ResultScreen() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
     onError: async (caught, variables) => {
+      if (caught instanceof RedesignJobFailedError) setRefinementClientRequestId(null);
       if (variables.accessMode !== 'free') return;
 
       const subscriptionRequired = isApiError(caught) && caught.code === SUBSCRIPTION_REQUIRED_ERROR_CODE;
@@ -290,14 +299,14 @@ export default function ResultScreen() {
     finally { setExporting(false); }
   };
 
-  const updateRefinement = (value: string) => { if (mutation.isError) mutation.reset(); if (refinementAccess.isError) refinementAccess.reset(); setNotice(null); setRefinement(value); };
+  const updateRefinement = (value: string) => { if (mutation.isError) mutation.reset(); if (refinementAccess.isError) refinementAccess.reset(); setRefinementClientRequestId(null); setNotice(null); setRefinement(value); };
   const runRefinement = (instruction: string) => {
     const baseImage = selectedBase?.imageUrl ?? result.imageDataUrl;
     setNotice(null);
     refinementAccess.mutate({ instruction, baseImage });
   };
   const submitRefinement = () => { const instruction = refinement.trim(); if (instruction) runRefinement(instruction); };
-  const applyItemRefinement = (instruction: string) => { setRefinement(''); runRefinement(instruction); };
+  const applyItemRefinement = (instruction: string) => { setRefinementClientRequestId(null); setRefinement(''); runRefinement(instruction); };
   const retryItems = () => {
     if (itemsPending) return;
     analyzedImageRef.current = result.imageDataUrl;

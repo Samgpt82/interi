@@ -2,16 +2,24 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Sparkles } from '@/components/icons';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 import { PrimaryButton, Screen, Wordmark } from '@/components/InteriUI';
-import { api, isApiError } from '@/lib/api/api';
+import { isApiError } from '@/lib/api/api';
 import { DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
-import { COLORS, SUBSCRIPTION_REQUIRED_ERROR_CODE, type RedesignRequest, type RedesignResponse } from '@/lib/interi';
+import { COLORS, SUBSCRIPTION_REQUIRED_ERROR_CODE, type RedesignRequest } from '@/lib/interi';
+import { createRedesign, createRedesignRequestId, RedesignJobFailedError } from '@/lib/redesign';
 import { useGenerationStore } from '@/lib/state/generation-store';
 import { usePreferencesStore } from '@/lib/state/preferences-store';
+
+const PROGRESS_MESSAGES = [
+  'Preparing the composition…',
+  'Rendering materials and furniture…',
+  'Balancing light and proportion…',
+  'Finishing the details — your design is still safely processing…',
+] as const;
 
 export default function GeneratingScreen() {
   const queryClient = useQueryClient();
@@ -20,20 +28,29 @@ export default function GeneratingScreen() {
   const roomType = useGenerationStore((state) => state.roomType);
   const direction = useGenerationStore((state) => state.direction);
   const accessMode = useGenerationStore((state) => state.accessMode);
+  const generationClientRequestId = useGenerationStore((state) => state.generationClientRequestId);
+  const setGenerationClientRequestId = useGenerationStore((state) => state.setGenerationClientRequestId);
   const setResult = useGenerationStore((state) => state.setResult);
   const shoppingCountry = usePreferencesStore((state) => state.shoppingCountry);
   const preferencesHydrated = usePreferencesStore((state) => state.hydrated);
   const started = useRef<boolean>(false);
+  const [progressStage, setProgressStage] = useState<number>(0);
   const sweep = useSharedValue(-1);
 
   const { mutate, isError, isPending, error } = useMutation({
-    mutationFn: (request: RedesignRequest) => api.post<RedesignResponse>('/api/redesign', request),
+    mutationFn: (request: RedesignRequest) => {
+      const requestId = generationClientRequestId ?? createRedesignRequestId();
+      if (!generationClientRequestId) setGenerationClientRequestId(requestId);
+      return createRedesign(request, requestId);
+    },
     onSuccess: (data) => {
+      setGenerationClientRequestId(null);
       if (data.designAccess) queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, data.designAccess);
       setResult(data);
       router.replace('/result');
     },
     onError: async (caught) => {
+      if (caught instanceof RedesignJobFailedError) setGenerationClientRequestId(null);
       if (accessMode !== 'free') return;
 
       const subscriptionRequired = isApiError(caught) && caught.code === SUBSCRIPTION_REQUIRED_ERROR_CODE;
@@ -62,6 +79,13 @@ export default function GeneratingScreen() {
       mutate({ sourceImageDataUrl, style, roomType, shoppingCountry, refinement: direction.trim() || undefined, accessMode });
     }
   }, [accessMode, direction, mutate, preferencesHydrated, roomType, shoppingCountry, sourceImageDataUrl, style, sweep]);
+
+  useEffect(() => {
+    if (!isPending) return;
+    setProgressStage(0);
+    const timer = setInterval(() => setProgressStage((current) => Math.min(current + 1, PROGRESS_MESSAGES.length - 1)), 12_000);
+    return () => clearInterval(timer);
+  }, [isPending]);
 
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ translateX: sweep.value * 230 }] }));
 
@@ -98,11 +122,11 @@ export default function GeneratingScreen() {
           <Text className="mt-10 text-center text-[34px] leading-[39px]" style={{ color: COLORS.espresso, fontFamily: 'Georgia' }}>
             Composing your room
           </Text>
-          <Text className="mt-3 max-w-[300px] text-center text-sm leading-6" style={{ color: COLORS.olive }}>
-            Balancing light, material and proportion. This can take a quiet moment.
+          <Text testID="generation-progress-message" className="mt-3 max-w-[320px] text-center text-sm leading-6" style={{ color: COLORS.olive }}>
+            {PROGRESS_MESSAGES[progressStage]}
           </Text>
           <View testID="generation-loading-indicator" className="mt-8 flex-row gap-2">
-            {[0, 1, 2, 3].map((item) => <View key={item} className="h-1.5 w-10 rounded-full" style={{ backgroundColor: item === 0 ? COLORS.coral : COLORS.line }} />)}
+            {PROGRESS_MESSAGES.map((_, item) => <View key={item} className="h-1.5 w-10 rounded-full" style={{ backgroundColor: item <= progressStage ? COLORS.coral : COLORS.line }} />)}
           </View>
 
           {isError ? (

@@ -59,6 +59,28 @@ export interface RedesignRequest {
   accessMode: DesignAccessMode;
 }
 
+export interface RedesignJobRequest extends RedesignRequest {
+  clientRequestId: string;
+}
+
+export type RedesignJobStatus = 'queued' | 'processing' | 'succeeded' | 'failed';
+
+export interface RedesignJobError {
+  message: string;
+  code: string;
+  retryable: boolean;
+}
+
+export interface RedesignJobResponse {
+  id: string;
+  status: RedesignJobStatus;
+  result: RedesignResponse | null;
+  error: RedesignJobError | null;
+  retryAfterMs: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type DesignInventoryRequest = Pick<
   RedesignRequest,
   'sourceImageDataUrl' | 'style' | 'roomType' | 'shoppingCountry'

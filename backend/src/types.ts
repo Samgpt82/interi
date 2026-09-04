@@ -43,6 +43,8 @@ export type VerificationCodeResponse = z.infer<typeof verificationCodeResponseSc
 
 export const designAccessModeSchema = z.enum(["free", "subscription"]);
 
+const clientRequestIdSchema = z.string().min(8).max(100).regex(/^[A-Za-z0-9_-]+$/);
+
 export const designAccessResponseSchema = z.object({
   freeDesignLimit: z.number().int().positive(),
   freeDesignsUsed: z.number().int().nonnegative(),
@@ -74,7 +76,16 @@ export const designInventoryRequestSchema = redesignRoomRequestSchema.pick({
   shoppingCountry: true,
 });
 
+export const redesignJobRequestSchema = redesignRoomRequestSchema.extend({
+  clientRequestId: clientRequestIdSchema,
+});
+export const persistedRedesignRequestSchema = redesignRoomRequestSchema.omit({ sourceImageDataUrl: true });
+
+export const redesignJobStatusSchema = z.enum(["queued", "processing", "succeeded", "failed"]);
+
 export type RedesignRoomRequest = z.infer<typeof redesignRoomRequestSchema>;
+export type RedesignJobRequest = z.infer<typeof redesignJobRequestSchema>;
+export type RedesignJobStatus = z.infer<typeof redesignJobStatusSchema>;
 export type DesignInventoryRequest = z.infer<typeof designInventoryRequestSchema>;
 
 export const designItemColorSchema = z.object({
@@ -102,12 +113,30 @@ export const designInventorySchema = z.object({
 export type DesignItemColor = z.infer<typeof designItemColorSchema>;
 export type DesignItem = z.infer<typeof designItemSchema>;
 
-export interface RedesignRoomResult {
-  imageDataUrl: string;
-  revisedPrompt: string;
-  items: DesignItem[];
-  shoppingCountry: ShoppingCountry;
-  designAccess: DesignAccessResponse;
+export const redesignRoomResultSchema = z.object({
+  imageDataUrl: z.string().min(1),
+  revisedPrompt: z.string().min(1),
+  items: z.array(designItemSchema),
+  shoppingCountry: shoppingCountrySchema,
+  designAccess: designAccessResponseSchema,
+});
+
+export type RedesignRoomResult = z.infer<typeof redesignRoomResultSchema>;
+
+export interface RedesignJobError {
+  message: string;
+  code: string;
+  retryable: boolean;
+}
+
+export interface RedesignJobResponse {
+  id: string;
+  status: RedesignJobStatus;
+  result: RedesignRoomResult | null;
+  error: RedesignJobError | null;
+  retryAfterMs: number | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const projectImageDataSchema = z
@@ -117,8 +146,6 @@ export const projectImageDataSchema = z
   .regex(/^data:image\/(png|jpe?g|webp);base64,/, "A valid project image is required");
 
 export const folderNameSchema = z.string().trim().min(1).max(80);
-
-const clientRequestIdSchema = z.string().min(8).max(100).regex(/^[A-Za-z0-9_-]+$/);
 
 export const createFolderRequestSchema = z.object({
   name: folderNameSchema,

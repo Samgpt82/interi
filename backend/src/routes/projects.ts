@@ -4,6 +4,7 @@ import { bodyLimit } from "hono/body-limit";
 
 import type { AppEnv } from "../auth";
 import { prisma } from "../prisma";
+import { cleanupStoredFiles, type StoredFile, uploadImage } from "../services/storage";
 import {
   appendProjectVersionRequestSchema,
   saveProjectRequestSchema,
@@ -27,15 +28,6 @@ projectsRouter.use(
     onError: (c) => c.json({ error: { message: "Project images are too large.", code: "PAYLOAD_TOO_LARGE" } }, 413),
   }),
 );
-
-interface StoredFile {
-  id: string;
-  url: string;
-}
-
-interface StorageUploadResponse {
-  file: StoredFile;
-}
 
 type VersionRecord = {
   id: string;
@@ -65,41 +57,6 @@ type ProjectRecord = {
 
 function unauthorized(c: Context<AppEnv>) {
   return c.json({ error: { message: "Please sign in to access your projects.", code: "UNAUTHORIZED" } }, 401);
-}
-
-function parseDataUrl(dataUrl: string) {
-  const match = /^data:(image\/(?:png|jpe?g|webp));base64,(.+)$/s.exec(dataUrl);
-  if (!match) throw new Error("Invalid image data");
-  return { contentType: match[1]!, bytes: Buffer.from(match[2]!, "base64") };
-}
-
-async function uploadImage(dataUrl: string, filename: string): Promise<StoredFile> {
-  const { contentType, bytes } = parseDataUrl(dataUrl);
-  const formData = new FormData();
-  formData.append("file", new File([bytes], filename, { type: contentType }));
-
-  const response = await fetch("https://storage.vibecodeapp.com/v1/files/upload", {
-    method: "POST",
-    body: formData,
-  });
-  const result = (await response.json().catch(() => null)) as StorageUploadResponse | { error?: string } | null;
-  if (!response.ok || !result || !("file" in result)) {
-    throw new Error(result && "error" in result ? result.error ?? "Image upload failed" : "Image upload failed");
-  }
-  return result.file;
-}
-
-async function deleteStoredFile(fileId: string) {
-  const response = await fetch(`https://storage.vibecodeapp.com/v1/files/${fileId}`, { method: "DELETE" });
-  if (!response.ok) throw new Error(`Storage cleanup failed (${response.status})`);
-}
-
-async function cleanupStoredFiles(fileIds: string[]) {
-  const uniqueFileIds = [...new Set(fileIds)];
-  const results = await Promise.allSettled(uniqueFileIds.map(deleteStoredFile));
-  for (const result of results) {
-    if (result.status === "rejected") console.error("Stored image cleanup failed", result.reason);
-  }
 }
 
 function serializeVersion(version: VersionRecord): ProjectVersionResponse {

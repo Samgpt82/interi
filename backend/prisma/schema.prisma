@@ -17,9 +17,10 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
-  projects        Project[]
-  folders         Folder[]
-  freeDesignsUsed Int       @default(0)
+  projects         Project[]
+  folders          Folder[]
+  redesignJobs     RedesignJob[]
+  freeDesignsUsed  Int           @default(0)
 }
 
 model Session {
@@ -120,4 +121,38 @@ model ProjectVersion {
   @@unique([projectId, number])
   @@index([projectId, createdAt])
   @@index([baseVersionId])
+}
+
+model RedesignJob {
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientRequestId    String
+  requestFingerprint String
+  status             String    @default("queued")
+  sourceImageUrl     String
+  sourceImageFileId  String
+  resultImageUrl     String?
+  resultImageFileId  String?
+  leaseToken         String?
+  style              String
+  roomType           String
+  shoppingCountry    String
+  refinement         String?
+  accessMode         String
+  designAccessJson   String
+  resultJson         String?
+  errorCode          String?
+  errorMessage       String?
+  retryable          Boolean   @default(false)
+  freeDesignClaimed  Boolean   @default(false)
+  attempts           Int       @default(0)
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@unique([userId, clientRequestId])
+  @@index([userId, status, completedAt])
+  @@index([status, updatedAt])
 }

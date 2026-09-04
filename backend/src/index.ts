@@ -9,6 +9,7 @@ import { projectsRouter } from "./routes/projects";
 import { redesignRouter } from "./routes/redesign";
 import { sampleRouter } from "./routes/sample";
 import { verificationCodeRouter } from "./routes/verification-code";
+import { startRedesignJobWorker } from "./services/redesign-jobs";
 import { logger } from "hono/logger";
 
 const app = new Hono<AppEnv>();
@@ -57,6 +58,8 @@ app.route("/api/design-access", designAccessRouter);
 app.route("/api/redesign", redesignRouter);
 app.route("/api/folders", foldersRouter);
 app.route("/api/projects", projectsRouter);
+
+startRedesignJobWorker();
 
 const port = Number(env.PORT) || 3000;
 
