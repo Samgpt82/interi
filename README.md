@@ -23,6 +23,10 @@ Saved-project, version, and folder creation requests include a stable client req
 
 After the three included designs are used, the create flow checks the signed-in account's active RevenueCat entitlement or subscription before showing subscription options. Active subscribers continue directly to generation, while accounts without full access see the membership screen.
 
+## Design generation
+
+New room compositions use high-quality image generation with an automated visual quality check. Follow-up refinements keep the same high-quality image output but use a single bounded generation pass, avoiding extra review and regeneration cycles so small adjustments return much sooner.
+
 ## Design assets
 
 The empty photo-upload card uses an interior photograph by Elvira Nisman, sourced from [Unsplash](https://unsplash.com/photos/minimalist-living-room-with-wooden-sideboard-aX1TTOuq83M).

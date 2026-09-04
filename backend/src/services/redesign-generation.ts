@@ -15,6 +15,7 @@ import {
 
 const IMAGE_ATTEMPT_TIMEOUT_MS = 240_000;
 const IMAGE_RETRY_DELAYS_MS = [1_000, 3_000];
+const REFINEMENT_IMAGE_ATTEMPT_TIMEOUT_MS = 120_000;
 const IMAGE_QUALITY = "high";
 const IMAGE_OUTPUT_COMPRESSION = "92";
 const QUALITY_REVIEW_TIMEOUT_MS = 60_000;
@@ -517,14 +518,26 @@ export async function generateRedesign(
   designAccess: DesignAccessResponse,
   options: ImageGenerationOptions
 ): Promise<RedesignRoomResult> {
+  const isRefinement = Boolean(request.refinement?.trim());
+  const generationOptions: ImageGenerationOptions = isRefinement
+    ? {
+        ...options,
+        timeoutMs: options.timeoutMs ?? REFINEMENT_IMAGE_ATTEMPT_TIMEOUT_MS,
+        retryDelaysMs: options.retryDelaysMs ?? [],
+        validateQuality: options.validateQuality ?? false,
+      }
+    : options;
   const firstImageDataUrl = await generateImageCandidate(
     imageFile,
     createInteriorPrompt(request),
-    options
+    generationOptions
   );
   let selectedImageDataUrl = firstImageDataUrl;
 
-  if (options.validateQuality !== false && (options.quality ?? IMAGE_QUALITY) === "high") {
+  if (
+    generationOptions.validateQuality !== false &&
+    (generationOptions.quality ?? IMAGE_QUALITY) === "high"
+  ) {
     const firstAssessment = await assessRedesignQuality(
       request.sourceImageDataUrl,
       firstImageDataUrl
@@ -541,7 +554,7 @@ export async function generateRedesign(
           imageFile,
           createCorrectivePrompt(request, firstAssessment),
           {
-            ...options,
+            ...generationOptions,
             idempotencyKey: `${options.idempotencyKey}-quality-retry`,
           }
         );
