@@ -5,7 +5,7 @@ import { Linking, Pressable, Text, View } from 'react-native';
 
 import { WorkingSpinner } from '@/components/WorkingSpinner';
 import { COLORS, type DesignItem, type ShoppingCountry } from '@/lib/interi';
-import { getShoppingMarket } from '@/lib/retailers';
+import { getRetailerSearchQuery, getShoppingMarket } from '@/lib/retailers';
 
 interface DesignItemsProps {
   items: DesignItem[];
@@ -22,6 +22,7 @@ function slug(value: string): string {
 
 export function DesignItems({ items, loading, error, shoppingCountry, onRefine, onRetry }: DesignItemsProps) {
   const [expandedId, setExpandedId] = useState<string | null>(items[0]?.id ?? null);
+  const [shoppingError, setShoppingError] = useState<string | null>(null);
   const market = getShoppingMarket(shoppingCountry);
 
   const runRefinement = (instruction: string) => {
@@ -29,9 +30,15 @@ export function DesignItems({ items, loading, error, shoppingCountry, onRefine, 
     onRefine(`${instruction} Keep the room architecture, camera angle, lighting, and every other design choice unchanged.`);
   };
 
-  const openRetailer = (url: string) => {
+  const openRetailer = async (retailerName: string, url: string) => {
+    setShoppingError(null);
     void Haptics.selectionAsync();
-    void Linking.openURL(url);
+
+    try {
+      await Linking.openURL(url);
+    } catch {
+      setShoppingError(`We couldn't open ${retailerName}. Please try another shop.`);
+    }
   };
 
   return (
@@ -106,7 +113,7 @@ export function DesignItems({ items, loading, error, shoppingCountry, onRefine, 
                     <Pressable
                       key={retailer.name}
                       testID={`shop-${slug(retailer.name)}-${itemSlug}`}
-                      onPress={() => openRetailer(retailer.getUrl(item.searchTerms))}
+                      onPress={() => void openRetailer(retailer.name, retailer.getUrl(getRetailerSearchQuery(item, shoppingCountry)))}
                       className="min-h-10 flex-row items-center justify-center rounded-full border px-3.5 active:opacity-60"
                       style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper }}>
                       <Text className="text-xs font-medium" style={{ color: COLORS.espresso }}>{retailer.name}</Text>
@@ -114,6 +121,11 @@ export function DesignItems({ items, loading, error, shoppingCountry, onRefine, 
                     </Pressable>
                   ))}
                 </View>
+                {shoppingError ? (
+                  <Text testID="shopping-link-error" className="mt-2 text-xs leading-5" style={{ color: COLORS.coral }}>
+                    {shoppingError}
+                  </Text>
+                ) : null}
 
                 <Text className="mt-5 text-[10px] font-semibold uppercase tracking-[1.8px]" style={{ color: COLORS.olive }}>Try another colour</Text>
                 <View className="mt-2 flex-row flex-wrap gap-2">
