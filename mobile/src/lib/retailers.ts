@@ -3,6 +3,7 @@ import type { DesignItem, ShoppingCountry } from '@/lib/interi';
 export interface Retailer {
   name: string;
   getUrl: (query: string) => string;
+  useDetailedSearch?: boolean;
 }
 
 export interface ShoppingMarket {
@@ -96,7 +97,9 @@ function fallbackSearchQuery(name: string): string {
   return simplifiedName?.split(/\s+/).slice(0, 4).join(' ') || name.trim();
 }
 
-export function getRetailerSearchQuery(item: SearchableDesignItem, country: ShoppingCountry): string {
+export function getRetailerSearchQuery(item: SearchableDesignItem, country: ShoppingCountry, retailer: Retailer): string {
+  if (retailer.useDetailedSearch) return item.searchTerms;
+
   const searchableText = normaliseSearchText(`${item.name} ${item.searchTerms}`);
   const category = PRODUCT_CATEGORIES[country].find(({ keywords }) =>
     keywords.some((keyword) => searchableText.includes(normaliseSearchText(keyword)))
@@ -112,7 +115,7 @@ export const SHOPPING_MARKETS: ShoppingMarket[] = [
     flag: '🇸🇪',
     currencyLabel: 'Swedish kronor (SEK)',
     retailers: [
-      { name: 'Google', getUrl: (query) => `https://www.google.se/search?tbm=shop&q=${encoded(query)}` },
+      { name: 'Google', getUrl: (query) => `https://www.google.se/search?tbm=shop&q=${encoded(query)}`, useDetailedSearch: true },
       { name: 'Amazon.se', getUrl: (query) => `https://www.amazon.se/s?k=${encoded(query)}` },
       { name: 'IKEA', getUrl: (query) => `https://www.ikea.com/se/sv/search/?q=${encoded(query)}` },
       { name: 'JYSK', getUrl: (query) => `https://jysk.se/search?query=${encoded(query)}` },
@@ -125,7 +128,7 @@ export const SHOPPING_MARKETS: ShoppingMarket[] = [
     flag: '🇬🇧',
     currencyLabel: 'British pounds (GBP)',
     retailers: [
-      { name: 'Google', getUrl: (query) => `https://www.google.co.uk/search?tbm=shop&q=${encoded(query)}` },
+      { name: 'Google', getUrl: (query) => `https://www.google.co.uk/search?tbm=shop&q=${encoded(query)}`, useDetailedSearch: true },
       { name: 'Amazon.co.uk', getUrl: (query) => `https://www.amazon.co.uk/s?k=${encoded(query)}` },
       { name: 'Wayfair', getUrl: (query) => `https://www.wayfair.co.uk/keyword.php?keyword=${encoded(query)}` },
       { name: 'IKEA', getUrl: (query) => `https://www.ikea.com/gb/en/search/?q=${encoded(query)}` },

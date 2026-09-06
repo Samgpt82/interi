@@ -113,7 +113,7 @@ export function DesignItems({ items, loading, error, shoppingCountry, onRefine, 
                     <Pressable
                       key={retailer.name}
                       testID={`shop-${slug(retailer.name)}-${itemSlug}`}
-                      onPress={() => void openRetailer(retailer.name, retailer.getUrl(getRetailerSearchQuery(item, shoppingCountry)))}
+                      onPress={() => void openRetailer(retailer.name, retailer.getUrl(getRetailerSearchQuery(item, shoppingCountry, retailer)))}
                       className="min-h-10 flex-row items-center justify-center rounded-full border px-3.5 active:opacity-60"
                       style={{ borderColor: COLORS.line, backgroundColor: COLORS.paper }}>
                       <Text className="text-xs font-medium" style={{ color: COLORS.espresso }}>{retailer.name}</Text>
