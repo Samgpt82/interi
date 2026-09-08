@@ -11,7 +11,8 @@ const envSchema = z.object({
 
   // Application services
   BACKEND_URL: z.string().url("BACKEND_URL must be a valid URL"),
-  DATABASE_URL: z.string().default("file:./dev.db"),
+  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
+  DIRECT_URL: z.string().min(1, "DIRECT_URL is required"),
   BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
 
   // Transactional email

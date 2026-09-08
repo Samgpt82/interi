@@ -44,8 +44,11 @@
 </routes>
 
 <database>
-  No database is configured by default.
-  If the user needs to persist data or have user accounts, use the database-auth skill and then update this file to reflect the changes.
+  Prisma v6 connects to managed PostgreSQL.
+  - `DATABASE_URL` is the pooled runtime connection.
+  - `DIRECT_URL` is the direct connection used by Prisma migrations.
+  - Development/preview uses `prisma db push`; production uses `prisma migrate deploy`.
+  - Never replace the production database URL with a local SQLite file.
 </database>
 
 <package_management>
