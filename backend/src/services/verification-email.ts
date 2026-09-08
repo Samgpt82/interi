@@ -1,4 +1,7 @@
-const OTP_EMAIL_URL = "https://smtp.vibecodeapp.com/v1/send/otp";
+import { env } from "../env";
+
+const VIBECODE_OTP_EMAIL_URL = "https://smtp.vibecodeapp.com/v1/send/otp";
+const RESEND_EMAIL_URL = "https://api.resend.com/emails";
 const OTP_EMAIL_TIMEOUT_MS = 10_000;
 
 export class VerificationEmailError extends Error {
@@ -16,22 +19,43 @@ export async function sendVerificationCodeEmail(email: string, code: string) {
   const timeout = setTimeout(() => controller.abort(), OTP_EMAIL_TIMEOUT_MS);
 
   try {
-    const response = await fetch(OTP_EMAIL_URL, {
+    const useResend = Boolean(env.RESEND_API_KEY || env.RESEND_FROM_EMAIL);
+
+    if (useResend && (!env.RESEND_API_KEY || !env.RESEND_FROM_EMAIL)) {
+      throw new VerificationEmailError("Resend email configuration is incomplete", 500);
+    }
+
+    const response = await fetch(useResend ? RESEND_EMAIL_URL : VIBECODE_OTP_EMAIL_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: email,
-        code,
-        fromName: "Interi",
-        lang: "en",
-      }),
+      headers: {
+        "Content-Type": "application/json",
+        ...(useResend ? { Authorization: `Bearer ${env.RESEND_API_KEY}` } : {}),
+      },
+      body: JSON.stringify(
+        useResend
+          ? {
+              from: env.RESEND_FROM_EMAIL,
+              to: [email],
+              subject: `${code} is Your Verification Code`,
+              text: `Your Interi verification code is ${code}.`,
+              html: `<p>Your Interi verification code is <strong>${code}</strong>.</p>`,
+            }
+          : {
+              to: email,
+              code,
+              fromName: "Interi",
+              lang: "en",
+            }
+      ),
       signal: controller.signal,
     });
 
     if (!response.ok) {
-      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      const data = (await response.json().catch(() => null)) as
+        | { error?: string; message?: string }
+        | null;
       throw new VerificationEmailError(
-        data?.error ?? `Email service returned HTTP ${response.status}`,
+        data?.message ?? data?.error ?? `Email service returned HTTP ${response.status}`,
         response.status
       );
     }

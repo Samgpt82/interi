@@ -14,6 +14,10 @@ const envSchema = z.object({
   DATABASE_URL: z.string().default("file:./dev.db"),
   BETTER_AUTH_SECRET: z.string().min(32, "BETTER_AUTH_SECRET must be at least 32 characters"),
 
+  // Transactional email
+  RESEND_API_KEY: z.string().min(1).optional(),
+  RESEND_FROM_EMAIL: z.string().min(1).optional(),
+
   // AI services
   OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
 
