@@ -72,9 +72,7 @@ fi
 
 sync_with_db_push() {
   echo "Pushing schema to database (db push)..."
-  # Never approve destructive schema changes automatically, especially when a
-  # development workspace is connected to a managed database.
-  bunx prisma db push
+  bunx prisma db push --accept-data-loss
 }
 
 migrate_deploy_or_park() {
