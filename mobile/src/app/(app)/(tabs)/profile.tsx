@@ -6,7 +6,7 @@ import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Screen, Wordmark } from '@/components/InteriUI';
 import { authClient } from '@/lib/auth/auth-client';
-import { useInvalidateSession, useSession } from '@/lib/auth/use-session';
+import { SESSION_QUERY_KEY, useSession } from '@/lib/auth/use-session';
 import { DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
 import { COLORS } from '@/lib/interi';
 import { getMembershipPlan, resetRevenueCatUser, useRevenueCatCustomerInfo, useSubscriptionManagement, useSubscriptionPaywall } from '@/lib/revenuecat';
@@ -16,7 +16,6 @@ export default function ProfileScreen() {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const { designs } = useSavedDesigns();
-  const invalidateSession = useInvalidateSession();
   const email = session?.user.email ?? '';
   const initial = email.slice(0, 1).toUpperCase() || 'I';
   const designAccess = useQuery({
@@ -40,12 +39,21 @@ export default function ProfileScreen() {
 
   const signOut = useMutation({
     mutationFn: async () => {
+      await queryClient.cancelQueries({ queryKey: DESIGN_ACCESS_QUERY_KEY });
+
       const result = await authClient.signOut();
-      if (result.error) throw new Error(result.error.message ?? 'Unable to sign out.');
-      await resetRevenueCatUser().catch((error: unknown) => console.warn('RevenueCat sign out failed', error));
+      if (result.error) {
+        // The Expo client can report a local hook error after the server already signed out.
+        const currentSession = await authClient.getSession();
+        if (currentSession.error || currentSession.data?.user) {
+          throw new Error(result.error.message ?? 'Unable to sign out.');
+        }
+      }
+
+      queryClient.setQueryData(SESSION_QUERY_KEY, null);
       queryClient.removeQueries({ queryKey: DESIGN_ACCESS_QUERY_KEY });
       queryClient.removeQueries({ queryKey: ['revenuecat-customer-info'] });
-      await invalidateSession();
+      await resetRevenueCatUser().catch((error: unknown) => console.warn('RevenueCat sign out failed', error));
     },
   });
 
