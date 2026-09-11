@@ -7,10 +7,8 @@ export default function AppLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: COLORS.chalk } }}>
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="style" />
       <Stack.Screen name="generating" options={{ gestureEnabled: false }} />
       <Stack.Screen name="subscription" />
-      <Stack.Screen name="result" />
       <Stack.Screen
         name="settings"
         options={{

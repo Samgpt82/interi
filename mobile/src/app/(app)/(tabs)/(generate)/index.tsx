@@ -112,7 +112,7 @@ export default function CreateScreen() {
               <View style={{ height: 230 }}>
                 <Image
                   testID="example-room-image"
-                  source={require('../../../assets/room-example.jpg')}
+                  source={require('../../../../assets/room-example.jpg')}
                   contentFit="cover"
                   style={{ width: '100%', height: '100%' }}
                 />

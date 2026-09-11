@@ -22,9 +22,9 @@ export default function TabLayout() {
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', letterSpacing: 0.4 },
       }}>
       <Tabs.Screen
-        name="index"
+        name="(generate)"
         options={{
-          title: 'Create',
+          title: 'Generate',
           tabBarButtonTestID: 'create-tab',
           tabBarIcon: ({ color, focused }) => <WandSparkles size={focused ? 24 : 22} color={color} strokeWidth={focused ? 2.2 : 1.8} />,
         }}
