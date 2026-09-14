@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { ArrowLeft, Bookmark, Check, Download, Folder, Layers3, Plus, Share2, ShoppingBag, X } from '@/components/icons';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { BeforeAfterSlider } from '@/components/BeforeAfterSlider';
@@ -166,13 +166,13 @@ export default function ResultScreen() {
   });
   const checkRefinementAccess = refinementAccess.mutate;
 
-  useFocusEffect(useCallback(() => {
+  useEffect(() => {
     const waitingRefinement = refinementWaitingForSubscription.current;
     if (!resumeRefinementAfterSubscription || !waitingRefinement) return;
     setResumeRefinementAfterSubscription(false);
     refinementWaitingForSubscription.current = null;
     checkRefinementAccess(waitingRefinement);
-  }, [checkRefinementAccess, resumeRefinementAfterSubscription, setResumeRefinementAfterSubscription]));
+  }, [checkRefinementAccess, resumeRefinementAfterSubscription, setResumeRefinementAfterSubscription]);
 
   useEffect(() => {
     if (!result || result.items.length > 0) return;
