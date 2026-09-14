@@ -1,0 +1,48 @@
+#!/bin/bash
+set -o errexit
+set -o nounset
+set -o pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+FAILED=0
+
+mapfile -t TRACKED_FILES < <(git -C "${REPO_ROOT}" ls-files)
+
+for FILE in "${TRACKED_FILES[@]}"; do
+  [[ -e "${REPO_ROOT}/${FILE}" ]] || continue
+
+  case "${FILE}" in
+    backend/.env|backend/.env.production|mobile/.env|mobile/.env.production|*.env.example)
+      # These exact environment files are managed by the Vibecode runtime.
+      continue
+      ;;
+    *.env|*.env.*|*.db|*.db-shm|*.db-wal|*.sqlite|*.sqlite3|*.pem|*.key|*.p8|*.p12|*.mobileprovision)
+      echo "Blocked sensitive file is tracked: ${FILE}"
+      FAILED=1
+      ;;
+  esac
+
+done
+
+SECRET_PATTERN='-----BEGIN ([A-Z ]+ )?PRIVATE KEY-----|AKIA[0-9A-Z]{16}|sk-(proj-)?[A-Za-z0-9_-]{20,}|re_[A-Za-z0-9_]{20,}'
+
+for FILE in "${TRACKED_FILES[@]}"; do
+  case "${FILE}" in
+    backend/.env|backend/.env.production|mobile/.env|mobile/.env.production|bun.lock|*/bun.lock)
+      continue
+      ;;
+  esac
+
+  FILE_PATH="${REPO_ROOT}/${FILE}"
+  if [[ -f "${FILE_PATH}" ]] && grep -Iq . "${FILE_PATH}" && grep -Eq -- "${SECRET_PATTERN}" "${FILE_PATH}"; then
+    echo "Possible credential found in tracked file: ${FILE}"
+    FAILED=1
+  fi
+done
+
+if [[ "${FAILED}" -ne 0 ]]; then
+  echo "Sensitive-file check failed. Remove or replace the files above before committing."
+  exit 1
+fi
+
+echo "Sensitive-file check passed."

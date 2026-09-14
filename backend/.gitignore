@@ -23,6 +23,20 @@ studio.log
 .env.production.local
 .env.local
 
+# local database artifacts (production uses managed PostgreSQL)
+prisma/*.db
+prisma/*.db-shm
+prisma/*.db-wal
+prisma/*.sqlite
+prisma/*.sqlite3
+
+# credentials and signing material
+*.key
+*.pem
+*.p8
+*.p12
+*.mobileprovision
+
 # caches
 .eslintcache
 .cache
