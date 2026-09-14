@@ -42,20 +42,52 @@ const envSchema = z
       });
     }
 
-    if (!values.DATABASE_URL.startsWith("postgresql://")) {
+    let databaseUrl: URL | null = null;
+    let directUrl: URL | null = null;
+
+    try {
+      databaseUrl = new URL(values.DATABASE_URL);
+      if (databaseUrl.protocol !== "postgresql:") {
+        throw new Error("invalid protocol");
+      }
+    } catch {
       ctx.addIssue({
         code: "custom",
         path: ["DATABASE_URL"],
-        message: "DATABASE_URL must use PostgreSQL in production",
+        message: "DATABASE_URL must be a valid PostgreSQL URL in production",
       });
     }
 
-    if (!values.DIRECT_URL.startsWith("postgresql://")) {
+    try {
+      directUrl = new URL(values.DIRECT_URL);
+      if (directUrl.protocol !== "postgresql:") {
+        throw new Error("invalid protocol");
+      }
+    } catch {
       ctx.addIssue({
         code: "custom",
         path: ["DIRECT_URL"],
-        message: "DIRECT_URL must use PostgreSQL in production",
+        message: "DIRECT_URL must be a valid PostgreSQL URL in production",
       });
+    }
+
+    if (databaseUrl && directUrl) {
+      const normalizeHost = (hostname: string) => hostname.replace("-pooler.", ".");
+      const databaseSchema = databaseUrl.searchParams.get("schema") ?? "public";
+      const directSchema = directUrl.searchParams.get("schema") ?? "public";
+      const targetsSameDatabase =
+        normalizeHost(databaseUrl.hostname) === normalizeHost(directUrl.hostname) &&
+        databaseUrl.username === directUrl.username &&
+        databaseUrl.pathname === directUrl.pathname &&
+        databaseSchema === directSchema;
+
+      if (!targetsSameDatabase) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["DIRECT_URL"],
+          message: "DIRECT_URL must target the same PostgreSQL database as DATABASE_URL",
+        });
+      }
     }
 
     for (const key of [
