@@ -9,7 +9,7 @@ import { authClient } from '@/lib/auth/auth-client';
 import { SESSION_QUERY_KEY, useSession } from '@/lib/auth/use-session';
 import { DESIGN_ACCESS_QUERY_KEY, fetchDesignAccess } from '@/lib/design-access';
 import { COLORS } from '@/lib/interi';
-import { getMembershipPlan, resetRevenueCatUser, useRevenueCatCustomerInfo, useSubscriptionManagement, useSubscriptionPaywall } from '@/lib/revenuecat';
+import { getMembershipPlan, getMembershipStore, resetRevenueCatUser, useRevenueCatCustomerInfo, useSubscriptionManagement } from '@/lib/revenuecat';
 import { useSavedDesigns } from '@/lib/state/saved-designs-context';
 
 export default function ProfileScreen() {
@@ -25,16 +25,12 @@ export default function ProfileScreen() {
     staleTime: 1000 * 15,
   });
   const customerInfo = useRevenueCatCustomerInfo(session?.user.id);
-  const subscription = useSubscriptionPaywall(session?.user.id);
   const subscriptionManagement = useSubscriptionManagement(session?.user.id);
   const freeDesignsRemaining = designAccess.data?.freeDesignsRemaining;
   const freeAllowanceActive = (freeDesignsRemaining ?? 0) > 0;
   const membershipPlan = getMembershipPlan(customerInfo.data);
   const fullAccess = membershipPlan !== 'Free';
-  const activeEntitlement = customerInfo.data
-    ? Object.values(customerInfo.data.entitlements.active)[0]
-    : undefined;
-  const testSubscription = activeEntitlement?.store === 'TEST_STORE';
+  const testSubscription = getMembershipStore(customerInfo.data) === 'TEST_STORE';
   const subscriptionsSupported = Platform.OS === 'ios' || Platform.OS === 'android';
 
   const signOut = useMutation({
@@ -141,12 +137,11 @@ export default function ProfileScreen() {
                 <Pressable
                   testID="profile-subscription-button"
                   accessibilityRole="button"
-                  disabled={subscription.isPending}
-                  onPress={() => { subscription.reset(); subscription.mutate(); }}
+                  onPress={() => router.push('/subscription')}
                   className="min-h-14 flex-row items-center border-t px-5 active:opacity-60"
-                  style={{ borderTopColor: '#D7DDC9', opacity: subscription.isPending ? 0.6 : 1 }}>
+                  style={{ borderTopColor: '#D7DDC9' }}>
                   <Text className="flex-1 text-sm font-semibold" style={{ color: COLORS.coral }}>
-                    {subscription.isPending ? 'Opening plans…' : 'Subscribe for full access'}
+                    See plans for full access
                   </Text>
                   <ArrowUpRight size={18} color={COLORS.coral} />
                 </Pressable>
@@ -165,11 +160,6 @@ export default function ProfileScreen() {
             {designAccess.isError ? (
               <Text testID="profile-design-access-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>
                 {designAccess.error instanceof Error ? designAccess.error.message : 'Unable to check free designs.'}
-              </Text>
-            ) : null}
-            {subscription.isError ? (
-              <Text testID="profile-subscription-error" className="mt-3 text-sm" style={{ color: COLORS.coral }}>
-                {subscription.error instanceof Error ? subscription.error.message : 'Unable to open subscription options.'}
               </Text>
             ) : null}
             {subscriptionManagement.isError ? (

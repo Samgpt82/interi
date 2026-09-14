@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Bookmark, Check, Download, Folder, Layers3, Plus, Share2, ShoppingBag, X } from '@/components/icons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { BeforeAfterSlider } from '@/components/BeforeAfterSlider';
@@ -32,6 +32,8 @@ export default function ResultScreen() {
   const sourceImageDataUrl = useGenerationStore((state) => state.sourceImageDataUrl);
   const style = useGenerationStore((state) => state.style);
   const roomType = useGenerationStore((state) => state.roomType);
+  const resumeRefinementAfterSubscription = useGenerationStore((state) => state.resumeRefinementAfterSubscription);
+  const setResumeRefinementAfterSubscription = useGenerationStore((state) => state.setResumeRefinementAfterSubscription);
   const result = useGenerationStore((state) => state.result);
   const projectId = useGenerationStore((state) => state.projectId);
   const projectTitle = useGenerationStore((state) => state.projectTitle);
@@ -53,6 +55,7 @@ export default function ResultScreen() {
   const { designs, folders, fetchProjectDetail, createProject, appendProjectVersion, createFolder, saving } = useSavedDesigns();
   const scrollRef = useRef<ScrollView | null>(null);
   const analyzedImageRef = useRef<string | null>(null);
+  const refinementWaitingForSubscription = useRef<{ instruction: string; baseImage: string } | null>(null);
   const [refinement, setRefinement] = useState<string>('');
   const [notice, setNotice] = useState<string | null>(null);
   const [exporting, setExporting] = useState<boolean>(false);
@@ -87,6 +90,12 @@ export default function ResultScreen() {
       const subscriptionRequired = isApiError(caught) && caught.code === SUBSCRIPTION_REQUIRED_ERROR_CODE;
       if (subscriptionRequired) {
         await queryClient.invalidateQueries({ queryKey: DESIGN_ACCESS_QUERY_KEY });
+        if (variables.refinement) {
+          refinementWaitingForSubscription.current = {
+            instruction: variables.refinement,
+            baseImage: variables.sourceImageDataUrl,
+          };
+        }
         router.push({ pathname: '/subscription', params: { returnTo: 'result' } });
         return;
       }
@@ -95,6 +104,12 @@ export default function ResultScreen() {
         const latestAccess = await fetchDesignAccess();
         queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, latestAccess);
         if (latestAccess.freeDesignsRemaining === 0) {
+          if (variables.refinement) {
+            refinementWaitingForSubscription.current = {
+              instruction: variables.refinement,
+              baseImage: variables.sourceImageDataUrl,
+            };
+          }
           router.push({ pathname: '/subscription', params: { returnTo: 'result' } });
         }
       } catch {
@@ -134,9 +149,11 @@ export default function ResultScreen() {
     onSuccess: ({ accessGranted, accessMode, designAccess, instruction, baseImage }) => {
       queryClient.setQueryData(DESIGN_ACCESS_QUERY_KEY, designAccess);
       if (!accessGranted) {
+        refinementWaitingForSubscription.current = { instruction, baseImage };
         router.push({ pathname: '/subscription', params: { returnTo: 'result' } });
         return;
       }
+      refinementWaitingForSubscription.current = null;
       mutation.mutate({
         sourceImageDataUrl: baseImage,
         style,
@@ -147,6 +164,15 @@ export default function ResultScreen() {
       });
     },
   });
+  const checkRefinementAccess = refinementAccess.mutate;
+
+  useFocusEffect(useCallback(() => {
+    const waitingRefinement = refinementWaitingForSubscription.current;
+    if (!resumeRefinementAfterSubscription || !waitingRefinement) return;
+    setResumeRefinementAfterSubscription(false);
+    refinementWaitingForSubscription.current = null;
+    checkRefinementAccess(waitingRefinement);
+  }, [checkRefinementAccess, resumeRefinementAfterSubscription, setResumeRefinementAfterSubscription]));
 
   useEffect(() => {
     if (!result || result.items.length > 0) return;

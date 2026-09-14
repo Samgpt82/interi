@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { Linking, Platform } from 'react-native';
-import Purchases, { type CustomerInfo } from 'react-native-purchases';
-import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
+import Purchases, { type CustomerInfo, type PurchasesError, type PurchasesOffering, type PurchasesPackage } from 'react-native-purchases';
+import RevenueCatUI from 'react-native-purchases-ui';
 
 const COMMON_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY;
+const ENTITLEMENT_ID = process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID ?? 'premium';
 const API_KEY = Platform.select({
   ios: process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY ?? COMMON_API_KEY,
   android: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY ?? COMMON_API_KEY,
@@ -12,8 +13,9 @@ const API_KEY = Platform.select({
 
 export const revenueCatSupported = Platform.OS === 'ios' || Platform.OS === 'android';
 export const revenueCatCustomerInfoKey = (appUserID: string) => ['revenuecat-customer-info', appUserID] as const;
+export const revenueCatOfferingKey = (appUserID: string) => ['revenuecat-offering', appUserID] as const;
 
-export type MembershipPlan = 'Free' | 'Monthly' | 'Yearly';
+export type MembershipPlan = 'Free' | 'Monthly' | 'Yearly' | 'Full access';
 
 let configurationPromise: Promise<void> | null = null;
 
@@ -36,23 +38,23 @@ async function configureRevenueCat(appUserID: string) {
 }
 
 export function hasFullAccess(customerInfo: CustomerInfo | null | undefined) {
-  return Boolean(
-    customerInfo
-      && (Object.keys(customerInfo.entitlements.active).length > 0 || customerInfo.activeSubscriptions.length > 0)
-  );
+  return Boolean(customerInfo?.entitlements.active[ENTITLEMENT_ID]);
 }
 
 export function getMembershipPlan(customerInfo: CustomerInfo | null | undefined): MembershipPlan {
-  const activeEntitlement = customerInfo
-    ? Object.values(customerInfo.entitlements.active)[0]
-    : undefined;
-  const productIdentifier = activeEntitlement?.productIdentifier ?? customerInfo?.activeSubscriptions[0];
+  const activeEntitlement = customerInfo?.entitlements.active[ENTITLEMENT_ID];
+  const productIdentifier = activeEntitlement?.productIdentifier;
 
   if (!productIdentifier) return 'Free';
 
   const normalizedIdentifier = productIdentifier.toLowerCase();
   if (/year|annual|12[_\-. ]?month/.test(normalizedIdentifier)) return 'Yearly';
-  return 'Monthly';
+  if (/month/.test(normalizedIdentifier)) return 'Monthly';
+  return 'Full access';
+}
+
+export function getMembershipStore(customerInfo: CustomerInfo | null | undefined) {
+  return customerInfo?.entitlements.active[ENTITLEMENT_ID]?.store;
 }
 
 export async function initializeRevenueCatUser(appUserID: string) {
@@ -68,24 +70,50 @@ export async function resetRevenueCatUser() {
   if (!appUserID.startsWith('$RCAnonymousID:')) await Purchases.logOut();
 }
 
-export async function requestFullAccess(appUserID: string) {
+function isPurchaseCancellation(error: unknown): error is PurchasesError {
+  if (!error || typeof error !== 'object') return false;
+  const purchaseError = error as Partial<PurchasesError>;
+  return purchaseError.code === Purchases.PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR
+    || purchaseError.userCancelled === true;
+}
+
+function assertFullAccess(customerInfo: CustomerInfo) {
+  if (!hasFullAccess(customerInfo)) {
+    throw new Error('The purchase completed, but no full-access entitlement is attached to this product.');
+  }
+}
+
+export async function getSubscriptionOffering(appUserID: string): Promise<PurchasesOffering> {
+  if (!revenueCatSupported) throw new Error('Subscription plans are only available in the mobile app.');
+
+  await configureRevenueCat(appUserID);
+  const offerings = await Purchases.getOfferings();
+  if (!offerings.current || offerings.current.availablePackages.length === 0) {
+    throw new Error('No subscription plans are available right now. Please try again shortly.');
+  }
+  return offerings.current;
+}
+
+export async function purchaseSubscriptionPackage(appUserID: string, packageToPurchase: PurchasesPackage) {
+  if (!revenueCatSupported) return { accessGranted: true, cancelled: false, customerInfo: null };
+
+  await configureRevenueCat(appUserID);
+  try {
+    const { customerInfo } = await Purchases.purchasePackage(packageToPurchase);
+    assertFullAccess(customerInfo);
+    return { accessGranted: true, cancelled: false, customerInfo };
+  } catch (error) {
+    if (!isPurchaseCancellation(error)) throw error;
+    return { accessGranted: false, cancelled: true, customerInfo: null };
+  }
+}
+
+export async function restoreSubscriptionPurchases(appUserID: string) {
   if (!revenueCatSupported) return { accessGranted: true, customerInfo: null };
 
   await configureRevenueCat(appUserID);
-  const currentCustomerInfo = await Purchases.getCustomerInfo();
-  if (hasFullAccess(currentCustomerInfo)) {
-    return { accessGranted: true, customerInfo: currentCustomerInfo };
-  }
-
-  const paywallResult = await RevenueCatUI.presentPaywall({ displayCloseButton: true });
-  const updatedCustomerInfo = await Purchases.getCustomerInfo();
-  const accessGranted = hasFullAccess(updatedCustomerInfo);
-
-  if (!accessGranted && (paywallResult === PAYWALL_RESULT.PURCHASED || paywallResult === PAYWALL_RESULT.RESTORED)) {
-    throw new Error('The purchase completed, but no full-access entitlement is attached to this product.');
-  }
-
-  return { accessGranted, customerInfo: updatedCustomerInfo };
+  const customerInfo = await Purchases.restorePurchases();
+  return { accessGranted: hasFullAccess(customerInfo), customerInfo };
 }
 
 export async function manageSubscription(appUserID: string) {
@@ -93,8 +121,8 @@ export async function manageSubscription(appUserID: string) {
 
   await configureRevenueCat(appUserID);
   const customerInfo = await Purchases.getCustomerInfo();
-  const activeEntitlement = Object.values(customerInfo.entitlements.active)[0];
-  const activeProductIdentifier = activeEntitlement?.productIdentifier ?? customerInfo.activeSubscriptions[0];
+  const activeEntitlement = customerInfo.entitlements.active[ENTITLEMENT_ID];
+  const activeProductIdentifier = activeEntitlement?.productIdentifier;
   const subscriptionStore = activeEntitlement?.store ?? (
     activeProductIdentifier
       ? customerInfo.subscriptionsByProductIdentifier[activeProductIdentifier]?.store
@@ -156,13 +184,37 @@ export function useRevenueCatCustomerInfo(appUserID: string | undefined) {
   });
 }
 
-export function useSubscriptionPaywall(appUserID: string | undefined) {
+export function useSubscriptionOffering(appUserID: string | undefined) {
+  return useQuery({
+    queryKey: revenueCatOfferingKey(appUserID ?? 'signed-out'),
+    queryFn: () => getSubscriptionOffering(appUserID!),
+    enabled: revenueCatSupported && Boolean(appUserID),
+    staleTime: 1000 * 60 * 5,
+    retry: false,
+  });
+}
+
+export function usePurchaseSubscription(appUserID: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (packageToPurchase: PurchasesPackage) => {
+      if (!appUserID) throw new Error('Sign in before choosing a plan.');
+      return purchaseSubscriptionPackage(appUserID, packageToPurchase);
+    },
+    onSuccess: (result) => {
+      if (result.customerInfo) queryClient.setQueryData(revenueCatCustomerInfoKey(appUserID!), result.customerInfo);
+    },
+  });
+}
+
+export function useRestoreSubscription(appUserID: string | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async () => {
-      if (!appUserID) throw new Error('Sign in before choosing a plan.');
-      return requestFullAccess(appUserID);
+      if (!appUserID) throw new Error('Sign in before restoring purchases.');
+      return restoreSubscriptionPurchases(appUserID);
     },
     onSuccess: (result) => {
       if (result.customerInfo) queryClient.setQueryData(revenueCatCustomerInfoKey(appUserID!), result.customerInfo);

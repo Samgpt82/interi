@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 
 import { api } from '@/lib/api/api';
 import type { DesignAccessMode, DesignAccessResponse } from '@/lib/interi';
-import { hasFullAccess, initializeRevenueCatUser, requestFullAccess } from '@/lib/revenuecat';
+import { hasFullAccess, initializeRevenueCatUser } from '@/lib/revenuecat';
 
 export const DESIGN_ACCESS_QUERY_KEY = ['design-access'] as const;
 
@@ -31,9 +31,5 @@ export async function checkDesignGenerationAccess(appUserID: string): Promise<De
 }
 
 export async function authorizeDesignGeneration(appUserID: string): Promise<DesignGenerationAuthorization> {
-  const currentAccess = await checkDesignGenerationAccess(appUserID);
-  if (currentAccess.accessGranted) return currentAccess;
-
-  const subscription = await requestFullAccess(appUserID);
-  return { ...currentAccess, accessGranted: subscription.accessGranted };
+  return checkDesignGenerationAccess(appUserID);
 }
