@@ -1,21 +1,31 @@
 {
   "expo": {
-    "name": "vibecode",
-    "slug": "vibecode",
+    "name": "Interi Remix",
+    "slug": "interi",
     "scheme": "vibecode",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vibecode.interiremix-tw55t9",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Interi Remix uses the camera to capture photos inside the app before you publish them.",
+        "NSPhotoLibraryUsageDescription": "Interi Remix accesses your photo library so you can move media between the app and your library.",
+        "NSPhotoLibraryAddUsageDescription": "Interi Remix saves media you export from the app into your photo library."
+      }
     },
     "android": {
       "edgeToEdgeEnabled": true
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "icon": "./icon.png"
   }
 }
