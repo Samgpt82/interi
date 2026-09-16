@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vibecode.interiremix-tw55t9",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "NSCameraUsageDescription": "Interi Remix uses the camera to capture photos inside the app before you publish them.",
         "NSPhotoLibraryUsageDescription": "Interi Remix accesses your photo library so you can move media between the app and your library.",
