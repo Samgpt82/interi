@@ -216,16 +216,16 @@ else
   # column) and leave the schema diverged. We gate baselining on a
   # read-only drift check that never mutates the customer database.
 
-  # env.sh sets DATABASE_URL in production; guard anyway so a missing
-  # value parks (loud, recoverable) instead of aborting under nounset
-  # into a runit restart loop.
+  # Production receives DATABASE_URL from the deployment environment; guard
+  # so a missing value parks (loud, recoverable) instead of aborting under
+  # nounset into a runit restart loop.
   if [[ -z "${DATABASE_URL:-}" ]]; then
     prisma_park "DATABASE_URL is not set; cannot verify schema drift or apply migrations safely."
   fi
 
-  # env.sh exports DATABASE_FILE alongside DATABASE_URL, but only inside its
-  # production branch. Derive it from the URL when absent so the baseline path
-  # stays reachable, and strip any ?query suffix.
+  # SQLite deployments may provide DATABASE_FILE alongside DATABASE_URL.
+  # Derive it from a file URL when absent so the baseline path stays reachable,
+  # and strip any ?query suffix.
   DB_FILE="${DATABASE_FILE:-}"
   if [[ -z "${DB_FILE}" && "${DATABASE_URL}" == file:* ]]; then
     DB_FILE="${DATABASE_URL#file:}"

@@ -17,7 +17,7 @@ source "$(dirname "$0")/env.sh"
 # loops this pre-flight exists to prevent. The db-backup-prune
 # runsv service trims older backups within ~30s, so the next start
 # cycle will succeed.
-if [[ "${ENVIRONMENT}" == "production" ]] && [[ -f "${DATABASE_FILE}" ]]; then
+if [[ "${ENVIRONMENT}" == "production" ]] && [[ -n "${DATABASE_FILE:-}" ]] && [[ -f "${DATABASE_FILE}" ]]; then
   DB_SIZE_BYTES=$(stat -c%s "${DATABASE_FILE}" 2>/dev/null || echo "")
   FREE_BYTES=$(df --output=avail -B1 "$(dirname "${DATABASE_FILE}")" 2>/dev/null | tail -n1 | tr -d ' ' || echo "")
 
