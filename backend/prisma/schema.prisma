@@ -3,9 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  // The hosting startup wrapper reserves DATABASE_URL for its managed file DB.
+  // Use the managed PostgreSQL direct URL so Prisma stays on PostgreSQL in production.
+  url      = env("DIRECT_URL")
 }
 
 model User {

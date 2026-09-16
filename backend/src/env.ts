@@ -47,14 +47,14 @@ const envSchema = z
 
     try {
       databaseUrl = new URL(values.DATABASE_URL);
-      if (databaseUrl.protocol !== "postgresql:") {
+      if (databaseUrl.protocol !== "postgresql:" && databaseUrl.protocol !== "file:") {
         throw new Error("invalid protocol");
       }
     } catch {
       ctx.addIssue({
         code: "custom",
         path: ["DATABASE_URL"],
-        message: "DATABASE_URL must be a valid PostgreSQL URL in production",
+        message: "DATABASE_URL must be a valid PostgreSQL or platform file URL in production",
       });
     }
 
@@ -71,7 +71,7 @@ const envSchema = z
       });
     }
 
-    if (databaseUrl && directUrl) {
+    if (databaseUrl?.protocol === "postgresql:" && directUrl) {
       const normalizeHost = (hostname: string) => hostname.replace("-pooler.", ".");
       const databaseSchema = databaseUrl.searchParams.get("schema") ?? "public";
       const directSchema = directUrl.searchParams.get("schema") ?? "public";
