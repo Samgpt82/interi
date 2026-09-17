@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PublicFooter } from '@/components/PublicFooter';
 import { requestVerificationCode } from '@/lib/auth/request-verification-code';
 import { COLORS } from '@/lib/interi';
 
@@ -213,6 +214,12 @@ export default function SignInScreen() {
               </Text>
             </View>
           </View>
+
+          {Platform.OS === 'web' ? (
+            <View className="mt-10">
+              <PublicFooter />
+            </View>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

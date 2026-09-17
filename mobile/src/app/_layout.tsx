@@ -53,6 +53,7 @@ export function RootLayoutNav() {
         <Stack.Protected guard={!!session?.user}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
+        <Stack.Screen name="support" />
         <Stack.Protected guard={!session?.user}>
           <Stack.Screen name="sign-in" />
           <Stack.Screen name="verify-otp" />
