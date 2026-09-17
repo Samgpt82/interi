@@ -1,5 +1,7 @@
 import { fetch } from "expo/fetch";
+import { Platform } from "react-native";
 
+import { BACKEND_URL } from "../backend-url";
 import { authClient } from "../auth/auth-client";
 
 // Response envelope type - all app routes return { data: T }
@@ -30,8 +32,6 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
 
-const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL!;
-
 interface RequestOptions {
   method?: string;
   body?: string;
@@ -45,11 +45,11 @@ const wait = (milliseconds: number) => new Promise<void>((resolve) => setTimeout
 
 const request = async <T>(url: string, options: RequestOptions = {}): Promise<T> => {
   const { retryTransient = (options.method ?? "GET") === "GET", ...fetchOptions } = options;
-  const cookie = await authClient.getCookie();
+  const cookie = Platform.OS === "web" ? null : await authClient.getCookie();
 
   for (let attempt = 0; ; attempt += 1) {
     try {
-      const response = await fetch(`${baseUrl}${url}`, {
+      const response = await fetch(`${BACKEND_URL}${url}`, {
         ...fetchOptions,
         credentials: "include",
         headers: {

@@ -9,7 +9,8 @@ export const useSession = () => {
     queryKey: SESSION_QUERY_KEY,
     queryFn: async () => {
       const result = await authClient.getSession();
-      return result.data ?? null;
+      const session = result.data;
+      return session?.user?.id ? session : null;
     },
     staleTime: 1000 * 60 * 5,
   });
