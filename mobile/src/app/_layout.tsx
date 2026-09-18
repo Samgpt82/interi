@@ -50,14 +50,15 @@ export function RootLayoutNav() {
   return (
     <ThemeProvider value={interiTheme}>
       <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: COLORS.chalk } }}>
-        <Stack.Protected guard={!!session?.user}>
-          <Stack.Screen name="(app)" />
-        </Stack.Protected>
-        <Stack.Screen name="support" />
-        <Stack.Protected guard={!session?.user}>
-          <Stack.Screen name="sign-in" />
-          <Stack.Screen name="verify-otp" />
-        </Stack.Protected>
+
+<Stack.Protected guard={!!session?.user}>
+  <Stack.Screen name="(app)" />
+</Stack.Protected>
+<Stack.Protected guard={!session?.user}>
+  <Stack.Screen name="sign-in" />
+  <Stack.Screen name="verify-otp" />
+</Stack.Protected>
+<Stack.Screen name="support" />
       </Stack>
     </ThemeProvider>
   );
