@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { auth, type AppEnv } from "./auth";
 import { env } from "./env";
+import { authRouter } from "./routes/auth";
 import { designAccessRouter } from "./routes/design-access";
 import { foldersRouter } from "./routes/folders";
 import { projectsRouter } from "./routes/projects";
@@ -47,7 +48,7 @@ app.use("*", async (c, next) => {
   await next();
 });
 
-app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+app.route("/api/auth", authRouter);
 
 // Health check endpoint
 app.get("/health", (c) => c.json({ status: "ok" }));

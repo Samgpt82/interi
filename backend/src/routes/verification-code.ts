@@ -1,15 +1,20 @@
 import { Hono } from "hono";
 
-import { auth, type AppEnv } from "../auth";
+import { appReviewAuth, auth, type AppEnv } from "../auth";
 import {
   sendVerificationCodeEmail,
   VerificationEmailError,
 } from "../services/verification-email";
+import {
+  clearVerificationCodeCooldown,
+  getVerificationCodeRetryAfterSeconds,
+  startVerificationCodeCooldown,
+} from "../lib/verification-code-cooldown";
 import { requestVerificationCodeSchema } from "../types";
 
 const verificationCodeRouter = new Hono<AppEnv>();
-const resendAvailableAt = new Map<string, number>();
 const RESEND_COOLDOWN_MS = 30_000;
+const APP_REVIEW_RESEND_COOLDOWN_MS = 5 * 60_000;
 
 verificationCodeRouter.post("/", async (c) => {
   c.header("Cache-Control", "no-store");
@@ -24,10 +29,9 @@ verificationCodeRouter.post("/", async (c) => {
   }
 
   const { email } = parsed.data;
-  const now = Date.now();
-  const availableAt = resendAvailableAt.get(email) ?? 0;
-  if (availableAt > now) {
-    const retryAfterSeconds = Math.ceil((availableAt - now) / 1000);
+  const otpRequest = { email, type: "sign-in" as const };
+  const retryAfterSeconds = getVerificationCodeRetryAfterSeconds(email);
+  if (retryAfterSeconds > 0) {
     c.header("Retry-After", String(retryAfterSeconds));
     return c.json(
       {
@@ -40,17 +44,22 @@ verificationCodeRouter.post("/", async (c) => {
     );
   }
 
-  resendAvailableAt.set(email, now + RESEND_COOLDOWN_MS);
+  const cooldownMs = appReviewAuth.isReviewSignIn(otpRequest)
+    ? APP_REVIEW_RESEND_COOLDOWN_MS
+    : RESEND_COOLDOWN_MS;
+  startVerificationCodeCooldown(email, cooldownMs);
 
   try {
     const otp = await auth.api.createVerificationOTP({
-      body: { email, type: "sign-in" },
+      body: otpRequest,
       headers: c.req.raw.headers,
     });
-    await sendVerificationCodeEmail(email, otp);
+    if (!appReviewAuth.isReviewSignIn(otpRequest)) {
+      await sendVerificationCodeEmail(email, otp);
+    }
     return c.json({ data: { success: true as const } });
   } catch (error) {
-    resendAvailableAt.delete(email);
+    clearVerificationCodeCooldown(email);
     console.error("Failed to send verification code", error);
 
     if (error instanceof VerificationEmailError && error.status === 429) {

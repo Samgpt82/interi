@@ -4,8 +4,13 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
 
 import { env } from "./env";
+import { createAppReviewAuth } from "./lib/app-review-auth";
 import { prisma } from "./prisma";
 import { sendVerificationCodeEmail } from "./services/verification-email";
+
+export const appReviewAuth = createAppReviewAuth({
+  otp: env.APP_REVIEW_OTP,
+});
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
@@ -27,8 +32,10 @@ export const auth = betterAuth({
   plugins: [
     expo(),
     emailOTP({
+      storeOTP: "hashed",
+      generateOTP: (request) => appReviewAuth.generateOTP(request),
       async sendVerificationOTP({ email, otp, type }) {
-        if (type !== "sign-in") return;
+        if (type !== "sign-in" || appReviewAuth.isReviewSignIn({ email, type })) return;
 
         await sendVerificationCodeEmail(email, String(otp));
       },

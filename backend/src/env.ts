@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const optionalSixDigitOTP = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().regex(/^\d{6}$/, "APP_REVIEW_OTP must be exactly 6 digits").optional()
+);
+
 /**
  * Environment variable schema using Zod
  * This ensures all required environment variables are present and valid
@@ -21,6 +26,9 @@ const envSchema = z
     // Transactional email
     RESEND_API_KEY: z.string().min(1).optional(),
     RESEND_FROM_EMAIL: z.string().min(1).optional(),
+
+    // Server-only App Review authentication
+    APP_REVIEW_OTP: optionalSixDigitOTP,
 
     // AI services
     OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
@@ -68,6 +76,14 @@ const envSchema = z
         code: "custom",
         path: ["DIRECT_URL"],
         message: "DIRECT_URL must be a valid PostgreSQL URL in production",
+      });
+    }
+
+    if (!values.APP_REVIEW_OTP) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["APP_REVIEW_OTP"],
+        message: "APP_REVIEW_OTP is required in production",
       });
     }
 
