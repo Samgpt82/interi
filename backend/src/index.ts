@@ -26,6 +26,7 @@ const allowed = [
   /^https:\/\/[a-z0-9-]+\.vibecodeapp\.com$/,
   /^https:\/\/[a-z0-9-]+\.vibecode\.dev$/,
   /^https:\/\/vibecode\.dev$/,
+  /^https:\/\/interi\.app$/,
   /^https:\/\/(?:[a-z0-9-]+\.)?interi-aw5\.pages\.dev$/,
 ];
 

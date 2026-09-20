@@ -26,6 +26,7 @@ export const auth = betterAuth({
     "https://*.vibecodeapp.com",
     "https://*.vibecode.dev",
     "https://vibecode.dev",
+    "https://interi.app",
     "https://interi-aw5.pages.dev",
     "https://*.interi-aw5.pages.dev",
   ],
