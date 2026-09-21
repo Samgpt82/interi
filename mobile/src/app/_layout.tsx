@@ -59,6 +59,7 @@ export function RootLayoutNav() {
   <Stack.Screen name="verify-otp" />
 </Stack.Protected>
 <Stack.Screen name="support" />
+<Stack.Screen name="privacy" />
       </Stack>
     </ThemeProvider>
   );
